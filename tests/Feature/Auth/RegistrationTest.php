@@ -6,7 +6,9 @@ use App\Models\Team;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -22,6 +24,8 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_register_a_team_and_are_redirected_to_team_planner(): void
     {
+        Notification::fake();
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -47,6 +51,7 @@ class RegistrationTest extends TestCase
             'team_id' => $team->id,
             'name' => 'Default Planning Board',
         ]);
+        Notification::assertSentTo($user, VerifyEmail::class);
         $response->assertRedirect(route('planner', $team, absolute: false));
     }
 
