@@ -1259,9 +1259,6 @@
     }
 
     .projects-form__body {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
         padding: 1.25rem;
     }
 
@@ -1271,15 +1268,16 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .projects-form__column {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
     .projects-form__field {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-    }
-
-    .projects-form__field--template {
-        grid-column: 1 / -1;
-        max-width: calc(50% - 0.5rem);
     }
 
     .projects-form__section {
@@ -1340,6 +1338,10 @@
         color: #a8a29e;
     }
 
+    .projects-form__description-input {
+        min-height: 5.5rem;
+    }
+
     .projects-form__ghost-button {
         display: inline-flex;
         align-items: center;
@@ -1383,10 +1385,6 @@
     @media (max-width: 720px) {
         .projects-form__grid {
             grid-template-columns: 1fr;
-        }
-
-        .projects-form__field--template {
-            max-width: none;
         }
 
         .projects-form__footer {
