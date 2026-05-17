@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -27,6 +28,7 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            'team_id' => Team::query()->value('id') ?? Team::factory(),
             'email_verified_at' => now(),
             'is_admin' => false,
             'password' => static::$password ??= Hash::make('password'),

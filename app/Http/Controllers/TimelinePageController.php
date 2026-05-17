@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Team;
 use App\Support\TimelinePayloadBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -15,9 +16,9 @@ class TimelinePageController extends Controller
         protected TimelinePayloadBuilder $timelinePayloadBuilder,
     ) {}
 
-    public function __invoke(Request $request, ?Project $project = null): Response
+    public function __invoke(Request $request, Team $team, ?Project $project = null): Response
     {
-        $allProjects = Project::query()->timelineVisible()->get();
+        $allProjects = $team->projects()->timelineVisible()->get();
         $selectedProjectIds = $this->selectedProjectIds($request, $allProjects, $project);
         $visibleProjectIds = $this->visibleProjectIds($allProjects, $selectedProjectIds, $project);
         $selectedAssigneeFilters = $this->selectedAssigneeFilters($request);
@@ -28,11 +29,11 @@ class TimelinePageController extends Controller
             ->values();
 
         return Inertia::render('Tasks/Index', [
-            'timelineData' => $this->timelinePayloadBuilder->build($selectedProjects, $allProjects, $selectedProjectIds, $selectedAssigneeFilters, $showWeekends, $collapsedProjectIds),
-            'createTaskUrlTemplate' => route('projects.tasks.store', ['project' => '__PROJECT__']),
-            'duplicateTaskUrlTemplate' => route('projects.tasks.duplicate', ['project' => '__PROJECT__', 'task' => '__TASK__']),
-            'reorderTaskUrlTemplate' => route('projects.tasks.reorder', ['project' => '__PROJECT__']),
-            'updateTaskUrlTemplate' => route('projects.tasks.update', ['project' => '__PROJECT__', 'task' => '__TASK__']),
+            'timelineData' => $this->timelinePayloadBuilder->build($selectedProjects, $allProjects, $selectedProjectIds, $selectedAssigneeFilters, $showWeekends, $collapsedProjectIds, team: $team),
+            'createTaskUrlTemplate' => route('projects.tasks.store', ['team' => $team, 'project' => '__PROJECT__']),
+            'duplicateTaskUrlTemplate' => route('projects.tasks.duplicate', ['team' => $team, 'project' => '__PROJECT__', 'task' => '__TASK__']),
+            'reorderTaskUrlTemplate' => route('projects.tasks.reorder', ['team' => $team, 'project' => '__PROJECT__']),
+            'updateTaskUrlTemplate' => route('projects.tasks.update', ['team' => $team, 'project' => '__PROJECT__', 'task' => '__TASK__']),
         ]);
     }
 
@@ -88,5 +89,13 @@ class TimelinePageController extends Controller
             ->intersect($allProjects->pluck('id'))
             ->values()
             ->all();
+    }
+
+    protected function currentTeam(Request $request): Team
+    {
+        /** @var Team $team */
+        $team = $request->route('team');
+
+        return $team;
     }
 }

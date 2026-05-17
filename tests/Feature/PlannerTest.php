@@ -44,12 +44,12 @@ class PlannerTest extends TestCase
         $user = $this->seedPlannerDemo();
 
         $this->actingAs($user)
-            ->get(route('planner'))
+            ->get(route('planner', $user->team))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Tasks/Index')
-                ->where('routes.apps.planner', route('planner'))
-                ->where('routes.apps.projects', route('projects.index'))
+                ->where('routes.apps.planner', route('planner', $user->team))
+                ->where('routes.apps.projects', route('projects.index', $user->team))
                 ->missing('routes.apps.clients')
                 ->missing('routes.apps.timesheets')
                 ->missing('routes.apps.invoices')
@@ -57,7 +57,7 @@ class PlannerTest extends TestCase
                 ->has('timelineData.assignee_options'));
 
         $this->actingAs($user)
-            ->get(route('projects.index'))
+            ->get(route('projects.index', $user->team))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Projects/Index')
@@ -71,7 +71,7 @@ class PlannerTest extends TestCase
         $user = $this->seedPlannerDemo();
 
         $projectResponse = $this->actingAs($user)
-            ->postJson(route('projects.store'), [
+            ->postJson(route('projects.store', $user->team), [
                 'name' => 'Open source launch plan',
                 'description' => 'Planner-only project description.',
             ])
@@ -83,7 +83,7 @@ class PlannerTest extends TestCase
         $this->assertArrayHasKey('project', $projectResponse->json());
 
         $taskResponse = $this->actingAs($user)
-            ->postJson(route('projects.tasks.store', $project), [
+            ->postJson(route('projects.tasks.store', [$user->team, $project]), [
                 'name' => 'Prepare release notes',
                 'start_date' => '2026-05-12',
                 'end_date' => '2026-05-14',
@@ -97,7 +97,7 @@ class PlannerTest extends TestCase
         $this->assertArrayHasKey('items', $taskResponse->json());
 
         $this->actingAs($user)
-            ->patchJson(route('projects.tasks.update', [$project, $task]), [
+            ->patchJson(route('projects.tasks.update', [$user->team, $project, $task]), [
                 'completed' => true,
             ])
             ->assertOk();
@@ -114,7 +114,7 @@ class PlannerTest extends TestCase
         $secondProject = Project::factory()->create(['name' => 'Second movable board']);
 
         $this->actingAs($user)
-            ->postJson(route('projects.bulk-action'), [
+            ->postJson(route('projects.bulk-action', $user->team), [
                 'action' => 'change-parent',
                 'parent_id' => $parent->id,
                 'project_ids' => [$firstProject->id, $secondProject->id],
@@ -125,7 +125,7 @@ class PlannerTest extends TestCase
         $this->assertSame($parent->id, $secondProject->fresh()->parent_id);
 
         $this->actingAs($user)
-            ->postJson(route('projects.bulk-action'), [
+            ->postJson(route('projects.bulk-action', $user->team), [
                 'action' => 'change-parent',
                 'parent_id' => null,
                 'project_ids' => [$firstProject->id, $secondProject->id],
@@ -148,7 +148,7 @@ class PlannerTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->postJson(route('projects.bulk-action'), [
+            ->postJson(route('projects.bulk-action', $user->team), [
                 'action' => 'delete',
                 'project_ids' => [$firstProject->id, $secondProject->id],
             ])
@@ -188,7 +188,7 @@ class PlannerTest extends TestCase
         ]);
 
         $this->actingAs($viewer)
-            ->get(route('projects.show', $project))
+            ->get(route('projects.show', [$viewer->team, $project]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Projects/Show')
@@ -198,7 +198,7 @@ class PlannerTest extends TestCase
                 ->has('project.task_groups', 2)
                 ->where('project.task_groups.0.assignee_name', $assignee->name)
                 ->where('project.task_groups.0.tasks.0.name', 'Assigned project task')
-                ->where('project.task_groups.0.tasks.0.update_url', route('projects.tasks.update', [$project, Task::query()->where('name', 'Assigned project task')->firstOrFail()]))
+                ->where('project.task_groups.0.tasks.0.update_url', route('projects.tasks.update', [$viewer->team, $project, Task::query()->where('name', 'Assigned project task')->firstOrFail()]))
                 ->where('project.task_groups.1.assignee_name', 'Unassigned')
                 ->where('project.task_groups.1.tasks.0.name', 'Unassigned project task'));
     }
@@ -214,7 +214,7 @@ class PlannerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->getJson(route('tasks.data', ['projects' => [$project->id]]))
+            ->getJson(route('tasks.data', [$user->team, 'projects' => [$project->id]]))
             ->assertOk();
 
         $this->assertContains('Unassigned', collect($response->json('assignee_options'))->pluck('label'));
@@ -237,14 +237,14 @@ class PlannerTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('planner'))
+            ->get(route('planner', $user->team))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Tasks/Index')
                 ->whereNot('timelineData.projects.0.name', 'Archived timeline board'));
 
         $response = $this->actingAs($user)
-            ->getJson(route('tasks.data', ['projects' => [$archivedProject->id]]))
+            ->getJson(route('tasks.data', [$user->team, 'projects' => [$archivedProject->id]]))
             ->assertOk();
 
         $this->assertNotContains('Archived timeline board', collect($response->json('projects'))->pluck('name'));
@@ -257,7 +257,7 @@ class PlannerTest extends TestCase
         $project = Project::query()->where('name', 'Website Relaunch')->firstOrFail();
 
         $createResponse = $this->actingAs($user)
-            ->postJson(route('timeline-views.store'), [
+            ->postJson(route('timeline-views.store', $user->team), [
                 'name' => 'Launch view',
                 'project_ids' => [$project->id],
                 'assignee_filters' => ['unassigned'],
@@ -278,7 +278,7 @@ class PlannerTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->patchJson(route('timeline-views.update', $viewId), [
+            ->patchJson(route('timeline-views.update', [$user->team, $viewId]), [
                 'name' => 'Launch view renamed',
             ])
             ->assertOk();
@@ -289,7 +289,7 @@ class PlannerTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->deleteJson(route('timeline-views.destroy', $viewId))
+            ->deleteJson(route('timeline-views.destroy', [$user->team, $viewId]))
             ->assertOk();
 
         $this->assertDatabaseMissing('timeline_views', ['id' => $viewId]);
@@ -301,7 +301,7 @@ class PlannerTest extends TestCase
         $otherUser = User::factory()->create();
 
         $viewId = $this->actingAs($owner)
-            ->postJson(route('timeline-views.store'), [
+            ->postJson(route('timeline-views.store', $owner->team), [
                 'name' => 'Private view',
                 'project_ids' => Project::query()->limit(1)->pluck('id')->all(),
                 'assignee_filters' => ['unassigned'],
@@ -313,15 +313,15 @@ class PlannerTest extends TestCase
             ->json('view.id');
 
         $this->actingAs($otherUser)
-            ->get(route('timeline-views.show', $viewId))
+            ->get(route('timeline-views.show', [$otherUser->team, $viewId]))
             ->assertNotFound();
 
         $this->actingAs($otherUser)
-            ->patchJson(route('timeline-views.update', $viewId), ['name' => 'Stolen'])
+            ->patchJson(route('timeline-views.update', [$otherUser->team, $viewId]), ['name' => 'Stolen'])
             ->assertNotFound();
 
         $this->actingAs($otherUser)
-            ->deleteJson(route('timeline-views.destroy', $viewId))
+            ->deleteJson(route('timeline-views.destroy', [$otherUser->team, $viewId]))
             ->assertNotFound();
     }
 
@@ -331,7 +331,7 @@ class PlannerTest extends TestCase
         $projects = Project::query()->limit(2)->get();
 
         $viewId = $this->actingAs($user)
-            ->postJson(route('timeline-views.store'), [
+            ->postJson(route('timeline-views.store', $user->team), [
                 'name' => 'Persistent view',
                 'project_ids' => [$projects[0]->id],
                 'assignee_filters' => ['unassigned'],
@@ -343,7 +343,7 @@ class PlannerTest extends TestCase
             ->json('view.id');
 
         $this->actingAs($user)
-            ->patchJson(route('timeline-views.update', $viewId), [
+            ->patchJson(route('timeline-views.update', [$user->team, $viewId]), [
                 'project_ids' => [$projects[1]->id],
                 'assignee_filters' => ['user:1'],
                 'show_weekends' => true,
@@ -377,7 +377,7 @@ class PlannerTest extends TestCase
         ]);
 
         $viewId = $this->actingAs($user)
-            ->postJson(route('timeline-views.store'), [
+            ->postJson(route('timeline-views.store', $user->team), [
                 'name' => 'Normalized view',
                 'project_ids' => [$visibleProject->id, $archivedProject->id],
                 'assignee_filters' => ['unassigned', 'user:not-real'],
@@ -389,7 +389,7 @@ class PlannerTest extends TestCase
             ->json('view.id');
 
         $this->actingAs($user)
-            ->get(route('timeline-views.show', $viewId))
+            ->get(route('timeline-views.show', [$user->team, $viewId]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Tasks/Index')

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Team;
 use App\Models\TimelineView;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -14,6 +15,7 @@ class TimelineViewFactory extends Factory
     public function definition(): array
     {
         return [
+            'team_id' => Team::query()->value('id') ?? Team::factory(),
             'user_id' => User::factory(),
             'name' => fake()->words(2, true),
             'project_ids' => [],

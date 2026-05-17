@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\User;
 use App\Support\TimelinePayloadBuilder;
 use Carbon\CarbonImmutable;
@@ -20,7 +21,7 @@ class ProjectTaskController extends Controller
         protected TimelinePayloadBuilder $timelinePayloadBuilder,
     ) {}
 
-    public function store(Request $request, Project $project): JsonResponse
+    public function store(Request $request, Team $team, Project $project): JsonResponse
     {
         $validated = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
@@ -60,7 +61,7 @@ class ProjectTaskController extends Controller
             abort_if($this->depthFor($project, $parent) >= 2, 422, 'Maximum nesting depth reached.');
         }
 
-        $assignment = $this->validatedAssignment($validated);
+        $assignment = $this->validatedAssignment($team, $validated);
 
         $task = $project->tasks()->create([
             'parent_id' => $parent?->id,
@@ -81,7 +82,7 @@ class ProjectTaskController extends Controller
         return response()->json($this->timelinePayload($request, $project));
     }
 
-    public function update(Request $request, Project $project, Task $task): JsonResponse
+    public function update(Request $request, Team $team, Project $project, Task $task): JsonResponse
     {
         abort_unless($task->project_id === $project->id, 404);
 
@@ -108,7 +109,7 @@ class ProjectTaskController extends Controller
         $oldParentId = $task->parent_id;
         $oldAncestorIds = $task->ancestorIds($allTasks);
         $targetProject = array_key_exists('project_id', $validated)
-            ? Project::query()->findOrFail($validated['project_id'])
+            ? $team->projects()->findOrFail($validated['project_id'])
             : $project;
         $convertingToGroup = ! $task->isGroup() && ($validated['kind'] ?? null) === Task::KIND_GROUP;
 
@@ -135,7 +136,7 @@ class ProjectTaskController extends Controller
         if (array_key_exists('assignee_user_id', $validated)) {
             $validated = [
                 ...$validated,
-                ...$this->validatedAssignment($validated, true, $task),
+                ...$this->validatedAssignment($team, $validated, true, $task),
             ];
         }
 
@@ -215,7 +216,7 @@ class ProjectTaskController extends Controller
         return response()->json($this->timelinePayload($request, $targetProject));
     }
 
-    public function reorder(Request $request, Project $project): JsonResponse
+    public function reorder(Request $request, Team $team, Project $project): JsonResponse
     {
         $validated = Validator::make($request->all(), [
             'task_id' => ['required', 'uuid', 'exists:tasks,id'],
@@ -239,7 +240,7 @@ class ProjectTaskController extends Controller
         return response()->json($this->timelinePayload($request, $project));
     }
 
-    public function duplicate(Request $request, Project $project, Task $task): JsonResponse
+    public function duplicate(Request $request, Team $team, Project $project, Task $task): JsonResponse
     {
         abort_unless($task->project_id === $project->id, 404);
 
@@ -277,7 +278,7 @@ class ProjectTaskController extends Controller
         return response()->json($this->timelinePayload($request, $project));
     }
 
-    public function destroy(Request $request, Project $project, Task $task): JsonResponse
+    public function destroy(Request $request, Team $team, Project $project, Task $task): JsonResponse
     {
         abort_unless($task->project_id === $project->id, 404);
 
@@ -323,7 +324,7 @@ class ProjectTaskController extends Controller
         return response()->json($this->timelinePayload($request, $project));
     }
 
-    protected function validatedAssignment(array $validated, bool $partial = false, ?Task $task = null): array
+    protected function validatedAssignment(Team $team, array $validated, bool $partial = false, ?Task $task = null): array
     {
         $assigneeUserId = array_key_exists('assignee_user_id', $validated)
             ? $validated['assignee_user_id']
@@ -335,7 +336,7 @@ class ProjectTaskController extends Controller
             ];
         }
 
-        User::query()->findOrFail($assigneeUserId);
+        $team->users()->findOrFail($assigneeUserId);
 
         return [
             'assignee_user_id' => $assigneeUserId,
@@ -807,7 +808,8 @@ class ProjectTaskController extends Controller
             ->unique()
             ->values();
 
-        $allProjects = Project::query()->timelineVisible()->orderBy('name')->get();
+        $team = $this->currentTeam($request);
+        $allProjects = $team->projects()->timelineVisible()->orderBy('name')->get();
         $visibleProjectIds = Project::expandSelectedIds($allProjects, $selectedProjectIds->all());
         $selectedProjects = $allProjects
             ->whereIn('id', $visibleProjectIds)
@@ -827,6 +829,15 @@ class ProjectTaskController extends Controller
             collect($request->input('collapsed_project_ids', []))
                 ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
                 ->all(),
+            team: $team,
         );
+    }
+
+    protected function currentTeam(Request $request): Team
+    {
+        /** @var Team $team */
+        $team = $request->route('team');
+
+        return $team;
     }
 }

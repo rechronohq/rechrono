@@ -21,7 +21,7 @@ export default async function globalSetup() {
     });
 
     execSync(
-        `php artisan rechrono:setup --no-interaction --name="E2E Admin" --email="${E2E_LOGIN_EMAIL}" --password="${E2E_LOGIN_PASSWORD}" --seed-demo`,
+        `php artisan rechrono:setup --no-interaction --name="E2E User" --email="${E2E_LOGIN_EMAIL}" --password="${E2E_LOGIN_PASSWORD}" --seed-demo`,
         {
             cwd,
             env,

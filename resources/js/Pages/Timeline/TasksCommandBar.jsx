@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
+import { ChevronRight, Settings2 } from 'lucide-react';
 
 import { Button, buttonVariants } from '../../components/ui/button';
 import { Checkbox } from '../../components/ui/checkbox';
@@ -9,8 +9,6 @@ import { Label } from '../../components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import AppContextBar from '../../Layouts/AppContextBar';
 import { cn } from '../../lib/utils';
-import { TIMELINE_DENSITIES } from './constants';
-import { selectedFiltersDescription } from './utils';
 
 export function TasksCommandBar({
     assigneeOptions = [],
@@ -72,11 +70,7 @@ export function TasksCommandBar({
 
     const actions = (
         <div className="flex flex-none items-center justify-end gap-2.5">
-            <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setSaveViewOpen(true)}>
-                Save view
-            </Button>
-
-            <Popover>
+            <Popover open={filtersOpen} onOpenChange={onToggleFilters}>
                 <PopoverTrigger asChild>
                     <button
                         type="button"
@@ -90,70 +84,13 @@ export function TasksCommandBar({
                         Settings
                     </button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="z-[260] w-72">
+                <PopoverContent align="end" className="z-[260] w-80">
                     <div className="space-y-4">
                         <div>
                             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Timeline view</div>
                         </div>
 
-                        <label className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-stone-700 transition hover:bg-stone-50">
-                            <Checkbox
-                                checked={showWeekends}
-                                onCheckedChange={(checked) => onToggleWeekends(Boolean(checked))}
-                            />
-                            <span className="truncate">Show weekends</span>
-                        </label>
-
-                        <div className="border-t border-stone-200/80 pt-3">
-                            <div className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Density</div>
-                            <div className="mt-2 space-y-1">
-                                {Object.values(TIMELINE_DENSITIES).map((density) => (
-                                    <button
-                                        key={density.key}
-                                        type="button"
-                                        data-testid={`timeline-density-${density.key}`}
-                                        className={cn(
-                                            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition hover:bg-stone-50',
-                                            viewDensity === density.key ? 'font-medium text-stone-950' : 'text-stone-700',
-                                        )}
-                                        onClick={() => onViewDensityChange(density.key)}
-                                    >
-                                        <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-                                            {viewDensity === density.key ? <Check className="h-3.5 w-3.5 text-stone-900" /> : null}
-                                        </span>
-                                        <span className="truncate">{density.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </PopoverContent>
-            </Popover>
-
-            <Popover open={filtersOpen} onOpenChange={onToggleFilters}>
-                <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        data-testid="tasks-filter-trigger"
-                        className={cn(
-                            buttonVariants({ variant: 'outline', size: 'sm' }),
-                            'min-w-[180px] max-w-[360px] shrink-0 justify-start gap-2 px-3 text-left',
-                        )}
-                    >
-                        <span className="min-w-0 flex-1 truncate font-medium">
-                            {selectedFiltersDescription(
-                                projects,
-                                selectedProjectIds,
-                                assigneeOptions,
-                                selectedAssigneeFilters,
-                            )}
-                        </span>
-                        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-stone-400 transition', filtersOpen && 'rotate-180')} />
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent className="z-[260] w-80">
-                    <div className="space-y-4">
-                        <div>
+                        <div className="border-t border-stone-200/80 pt-4">
                             <div className="flex items-center justify-between px-1">
                                 <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Projects</span>
                                 <button type="button" className="text-xs font-medium text-stone-500 hover:text-stone-900" onClick={onSelectAllProjects}>
@@ -197,6 +134,37 @@ export function TasksCommandBar({
                             </div>
                         </div>
 
+                        <div className="border-t border-stone-200/80 pt-4">
+                            <div className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Preferences</div>
+                            <label className="mt-2 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-stone-700 transition hover:bg-stone-50">
+                                <Checkbox
+                                    data-testid="timeline-density-compact"
+                                    checked={viewDensity === 'compact'}
+                                    onCheckedChange={(checked) => onViewDensityChange(checked ? 'compact' : 'comfortable')}
+                                />
+                                <span className="truncate">Compact mode</span>
+                            </label>
+                            <label className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-stone-700 transition hover:bg-stone-50">
+                                <Checkbox
+                                    checked={showWeekends}
+                                    onCheckedChange={(checked) => onToggleWeekends(Boolean(checked))}
+                                />
+                                <span className="truncate">Show weekends</span>
+                            </label>
+                        </div>
+
+                        <div className="border-t border-stone-200/80 pt-4">
+                            <button
+                                type="button"
+                                className="flex w-full items-center justify-center rounded-md border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 transition hover:bg-stone-50 hover:text-stone-950"
+                                onClick={() => {
+                                    onToggleFilters(false);
+                                    setSaveViewOpen(true);
+                                }}
+                            >
+                                Save view
+                            </button>
+                        </div>
                     </div>
                 </PopoverContent>
             </Popover>

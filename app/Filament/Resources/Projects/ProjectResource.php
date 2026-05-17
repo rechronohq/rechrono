@@ -89,7 +89,7 @@ class ProjectResource extends Resource
             ->recordActions([
                 Action::make('timeline')
                     ->icon(Heroicon::OutlinedCalendarDays)
-                    ->url(fn (Project $record): string => route('projects.timeline', $record)),
+                    ->url(fn (Project $record): string => route('projects.timeline', [$record->team, $record])),
                 EditAction::make(),
                 DeleteAction::make(),
             ])

@@ -4,6 +4,7 @@ namespace App\Imports\Hive;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -15,12 +16,12 @@ final class HiveCsvImportService
         protected HiveCsvImportPreviewService $previewService,
     ) {}
 
-    public function import(string|UploadedFile $source): HiveCsvImportResult
+    public function import(string|UploadedFile $source, ?Team $team = null): HiveCsvImportResult
     {
-        $preview = $this->previewService->preview($source);
+        $preview = $this->previewService->preview($source, $team);
         $rows = $this->parser->parse($source);
 
-        return DB::transaction(function () use ($rows, $preview): HiveCsvImportResult {
+        return DB::transaction(function () use ($rows, $preview, $team): HiveCsvImportResult {
             $warnings = $this->previewWarningsForImport($preview);
             $entries = [];
             $additionalSkippedRowCount = 0;
@@ -50,10 +51,11 @@ final class HiveCsvImportService
                 ];
             }
 
-            [$projectIdsByName, $rootProjectIds, $projectIds] = $this->createProjects($entries);
+            [$projectIdsByName, $rootProjectIds, $projectIds] = $this->createProjects($entries, $team);
             [$taskIdsByRowIndex, $taskIdsByProjectAndHiveId, $taskIdsByProjectAndTitle] = $this->createTasks(
                 $entries,
                 $projectIdsByName,
+                $team,
             );
 
             $warnings = [
@@ -62,7 +64,7 @@ final class HiveCsvImportService
             ];
 
             $this->resequenceTasks($entries, $taskIdsByRowIndex);
-            [$matchedAssignees, $unmatchedAssigneeNames] = $this->matchAssignees($entries);
+            [$matchedAssignees, $unmatchedAssigneeNames] = $this->matchAssignees($entries, $team);
 
             return new HiveCsvImportResult(
                 rootProjectIds: $rootProjectIds,
@@ -80,7 +82,7 @@ final class HiveCsvImportService
      * @param  array<int, array{index: int, row: HiveCsvRow, start: string, end: string}>  $entries
      * @return array{0: array<string, string>, 1: array<int, string>, 2: array<int, string>}
      */
-    protected function createProjects(array $entries): array
+    protected function createProjects(array $entries, ?Team $team = null): array
     {
         $definitions = [];
 
@@ -104,7 +106,7 @@ final class HiveCsvImportService
         $projectIds = [];
 
         foreach ($definitions as $definition) {
-            $project = Project::query()->create([
+            $project = ($team ? $team->projects() : Project::query())->create([
                 'name' => $definition['name'],
                 'description' => null,
                 'is_template' => false,
@@ -128,9 +130,9 @@ final class HiveCsvImportService
      *     2: array<string, array<string, array<int, string>>>
      * }
      */
-    protected function createTasks(array $entries, array $projectIdsByName): array
+    protected function createTasks(array $entries, array $projectIdsByName, ?Team $team = null): array
     {
-        $usersByNormalizedName = User::query()
+        $usersByNormalizedName = ($team ? $team->users() : User::query())
             ->orderBy('name')
             ->get(['id', 'name'])
             ->mapWithKeys(fn (User $user): array => [$this->normalizeName($user->name) => $user]);
@@ -275,9 +277,9 @@ final class HiveCsvImportService
      * @param  array<int, array{index: int, row: HiveCsvRow, start: string, end: string}>  $entries
      * @return array{0: array<int, array{id: int, name: string}>, 1: array<int, string>}
      */
-    protected function matchAssignees(array $entries): array
+    protected function matchAssignees(array $entries, ?Team $team = null): array
     {
-        $usersByNormalizedName = User::query()
+        $usersByNormalizedName = ($team ? $team->users() : User::query())
             ->orderBy('name')
             ->get(['id', 'name'])
             ->mapWithKeys(fn (User $user): array => [$this->normalizeName($user->name) => $user]);

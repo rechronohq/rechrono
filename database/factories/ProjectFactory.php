@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Project;
+use App\Models\Team;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,6 +19,7 @@ class ProjectFactory extends Factory
     public function definition(): array
     {
         return [
+            'team_id' => Team::query()->value('id') ?? Team::factory(),
             'name' => fake()->words(3, true).' plan',
             'description' => fake()->sentence(12),
             'is_template' => false,

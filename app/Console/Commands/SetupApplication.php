@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Models\Team;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
@@ -78,15 +79,25 @@ class SetupApplication extends Command
             }
         }
 
+        $team = Team::query()->firstOrCreate(
+            ['slug' => 'default-team'],
+            ['name' => 'Default Team'],
+        );
+
         $user = User::query()->updateOrCreate(
             ['email' => $email],
             [
+                'team_id' => $existingUser?->team_id ?? $team->id,
                 'name' => $name,
                 'password' => Hash::make($password),
                 'email_verified_at' => now(),
                 'is_admin' => true,
             ],
         );
+
+        if ($team->owner_user_id === null) {
+            $team->update(['owner_user_id' => $user->id]);
+        }
 
         $this->components->info($existingUser ? "Updated admin [{$user->email}]." : "Created admin [{$user->email}].");
 

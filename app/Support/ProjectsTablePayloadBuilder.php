@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Project;
+use App\Models\Team;
 use Illuminate\Support\Collection;
 
 class ProjectsTablePayloadBuilder
@@ -11,8 +12,9 @@ class ProjectsTablePayloadBuilder
         protected ProjectDateRangeResolver $projectDateRangeResolver,
     ) {}
 
-    public function build(Collection $projects, string $statusFilter = 'active'): array
+    public function build(Collection $projects, string $statusFilter = 'active', ?Team $team = null): array
     {
+        $team ??= $projects->first()?->team;
         $projects = Project::orderedHierarchy($projects);
         $dateRanges = $this->projectDateRangeResolver->forCollection($projects);
 
@@ -24,7 +26,7 @@ class ProjectsTablePayloadBuilder
                 ['value' => 'templates', 'label' => 'Templates'],
                 ['value' => 'all', 'label' => 'All'],
             ],
-            'bulk_action_url' => route('projects.bulk-action'),
+            'bulk_action_url' => $team ? route('projects.bulk-action', $team) : null,
             'parent_options' => $projects
                 ->filter(fn (Project $project): bool => $project->parent_id === null && ! $project->is_template)
                 ->map(fn (Project $project): array => [
@@ -33,7 +35,8 @@ class ProjectsTablePayloadBuilder
                 ])
                 ->values()
                 ->all(),
-            'rows' => $projects->map(function (Project $project) use ($dateRanges): array {
+            'rows' => $projects->map(function (Project $project) use ($dateRanges, $team): array {
+                $routeTeam = $team ?? $project->team;
                 [$startDate, $endDate] = $dateRanges->get($project->id, [null, null]);
 
                 return [
@@ -45,12 +48,12 @@ class ProjectsTablePayloadBuilder
                     'depth' => $project->parent_id ? 1 : 0,
                     'is_active' => $project->is_active,
                     'is_template' => $project->is_template,
-                    'destroy_url' => route('projects.destroy', $project),
-                    'duplicate_url' => route('projects.duplicate', $project),
-                    'edit_url' => route('projects.edit', $project),
-                    'show_url' => route('projects.show', $project),
-                    'template_url' => route('projects.template', $project),
-                    'timeline_url' => route('projects.timeline', $project),
+                    'destroy_url' => route('projects.destroy', [$routeTeam, $project]),
+                    'duplicate_url' => route('projects.duplicate', [$routeTeam, $project]),
+                    'edit_url' => route('projects.edit', [$routeTeam, $project]),
+                    'show_url' => route('projects.show', [$routeTeam, $project]),
+                    'template_url' => route('projects.template', [$routeTeam, $project]),
+                    'timeline_url' => route('projects.timeline', [$routeTeam, $project]),
                 ];
             })->values()->all(),
         ];

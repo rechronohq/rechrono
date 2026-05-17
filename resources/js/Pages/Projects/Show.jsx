@@ -30,7 +30,7 @@ import { TaskDialog } from '@/tasks/TaskDialog';
 import { getTaskRowActions } from '@/tasks/taskRowActions';
 
 export default function ProjectsShow({ project }) {
-    const { auth } = usePage().props;
+    const { auth, routes } = usePage().props;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [taskFilter, setTaskFilter] = useState(() => savedProjectTaskView(project.id).filter);
     const [taskGrouping, setTaskGrouping] = useState(() => savedProjectTaskView(project.id).grouping);
@@ -79,7 +79,7 @@ export default function ProjectsShow({ project }) {
     const context = (
         <AppBreadcrumb
             items={[
-                { label: 'All projects', href: toAppPath('/projects') },
+                { label: 'All projects', href: toAppPath(routes?.projects?.index ?? '/projects') },
                 { label: project.name },
             ]}
         />
@@ -145,7 +145,7 @@ export default function ProjectsShow({ project }) {
             });
 
             if (action === 'delete') {
-                router.visit(toAppPath('/projects'));
+                router.visit(toAppPath(routes?.projects?.index ?? '/projects'));
 
                 return;
             }
@@ -367,7 +367,7 @@ export default function ProjectsShow({ project }) {
             context={context}
             actions={(
                 <div className="flex items-center gap-2">
-                    <Link href={toAppPath(`/projects/${project.id}/edit`)} className={cn(buttonVariants({ variant: 'outline' }))}>
+                    <Link href={toAppPath(project.edit_url)} className={cn(buttonVariants({ variant: 'outline' }))}>
                         {project.is_template ? 'Edit template' : 'Edit project'}
                     </Link>
                     {!project.is_template ? (
@@ -586,7 +586,7 @@ function ProjectHeroFacts({ project }) {
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-stone-500">
             {parent?.name ? (
                 <Link
-                    href={toAppPath(`/projects/${parent.id}`)}
+                    href={toAppPath(parent.show_url)}
                     className="font-medium text-stone-600 transition-colors hover:text-stone-900"
                 >
                     {parent.name}

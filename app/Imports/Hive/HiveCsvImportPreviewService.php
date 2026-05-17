@@ -3,6 +3,7 @@
 namespace App\Imports\Hive;
 
 use App\Models\User;
+use App\Models\Team;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 
@@ -12,7 +13,7 @@ final class HiveCsvImportPreviewService
         protected HiveCsvImportParser $parser,
     ) {}
 
-    public function preview(string|UploadedFile $source): HiveCsvPreview
+    public function preview(string|UploadedFile $source, ?Team $team = null): HiveCsvPreview
     {
         $rows = $this->parser->parse($source);
         $validRows = [];
@@ -48,7 +49,7 @@ final class HiveCsvImportPreviewService
             ...$this->resolveParentWarnings($validRows),
         ]));
 
-        [$matchedAssignees, $unmatchedAssigneeNames] = $this->matchAssignees(collect($validRows)->pluck('row'));
+        [$matchedAssignees, $unmatchedAssigneeNames] = $this->matchAssignees(collect($validRows)->pluck('row'), $team);
 
         return new HiveCsvPreview(
             rootProjects: $rootProjects,
@@ -187,9 +188,9 @@ final class HiveCsvImportPreviewService
      * @param  Collection<int, HiveCsvRow>  $rows
      * @return array{0: array<int, array{id: int, name: string}>, 1: array<int, string>}
      */
-    protected function matchAssignees(Collection $rows): array
+    protected function matchAssignees(Collection $rows, ?Team $team = null): array
     {
-        $users = User::query()
+        $users = ($team ? $team->users() : User::query())
             ->orderBy('name')
             ->get(['id', 'name']);
 

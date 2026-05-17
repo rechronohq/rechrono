@@ -11,13 +11,39 @@ use App\Http\Controllers\ProjectTaskController;
 use App\Http\Controllers\TimelineDataController;
 use App\Http\Controllers\TimelinePageController;
 use App\Http\Controllers\TimelineViewController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('planner');
+Route::get('/', function (Request $request) {
+    return $request->user()?->team
+        ? redirect()->route('planner', $request->user()->team)
+        : redirect()->route('login');
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/planner', fn (Request $request) => redirect()->route('planner', $request->user()->team));
+    Route::get('/tasks', fn (Request $request) => redirect()->route('tasks', $request->user()->team));
+    Route::get('/projects', fn (Request $request) => redirect()->route('projects.index', [
+        'team' => $request->user()->team,
+        ...$request->query(),
+    ]));
+    Route::get('/projects/new', fn (Request $request) => redirect()->route('projects.create', $request->user()->team));
+    Route::get('/projects/{project}', function (Request $request, string $project) {
+        $teamProject = $request->user()->team?->projects()->findOrFail($project);
+
+        return redirect()->route('projects.show', [$request->user()->team, $teamProject]);
+    });
+    Route::get('/projects/{project}/edit', function (Request $request, string $project) {
+        $teamProject = $request->user()->team?->projects()->findOrFail($project);
+
+        return redirect()->route('projects.edit', [$request->user()->team, $teamProject]);
+    });
+});
+
+Route::prefix('{team:slug}')
+    ->middleware(['auth', 'team.member'])
+    ->scopeBindings()
+    ->group(function () {
     Route::get('/planner', TimelinePageController::class)->name('planner');
     Route::get('/tasks', TimelinePageController::class)->name('tasks');
     Route::get('/projects', ProjectsPageController::class)->name('projects.index');

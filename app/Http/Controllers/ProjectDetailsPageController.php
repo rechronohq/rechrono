@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\User;
+use Illuminate\Http\Request;
 use App\Support\ProjectDateRangeResolver;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -16,7 +18,7 @@ class ProjectDetailsPageController extends Controller
         protected ProjectDateRangeResolver $projectDateRangeResolver,
     ) {}
 
-    public function __invoke(Project $project): Response
+    public function __invoke(Request $request, Team $team, Project $project): Response
     {
         [$startDate, $endDate] = $this->projectDateRangeResolver->forProject($project);
         $tasks = $project->tasks()
@@ -32,34 +34,35 @@ class ProjectDetailsPageController extends Controller
                 'end_date' => $endDate,
                 'is_active' => $project->is_active,
                 'is_template' => $project->is_template,
-                'bulk_action_url' => route('projects.bulk-action'),
+                'bulk_action_url' => route('projects.bulk-action', $team),
                 'parent' => $project->parent ? [
                     'id' => $project->parent->id,
                     'name' => $project->parent->name,
+                    'show_url' => route('projects.show', [$team, $project->parent]),
                 ] : null,
-                'destroy_url' => route('projects.destroy', $project),
-                'duplicate_url' => route('projects.duplicate', $project),
-                'edit_url' => route('projects.edit', $project),
-                'show_url' => route('projects.show', $project),
-                'template_url' => route('projects.template', $project),
-                'timeline_url' => route('projects.timeline', $project),
-                'create_task_url' => route('projects.tasks.store', $project),
-                'assignee_options' => $this->assigneeOptions(),
+                'destroy_url' => route('projects.destroy', [$team, $project]),
+                'duplicate_url' => route('projects.duplicate', [$team, $project]),
+                'edit_url' => route('projects.edit', [$team, $project]),
+                'show_url' => route('projects.show', [$team, $project]),
+                'template_url' => route('projects.template', [$team, $project]),
+                'timeline_url' => route('projects.timeline', [$team, $project]),
+                'create_task_url' => route('projects.tasks.store', [$team, $project]),
+                'assignee_options' => $this->assigneeOptions($team),
                 'parent_task_options' => $this->parentTaskOptions($tasks),
                 'task_summary' => $this->taskSummary($tasks),
-                'task_groups' => $this->taskGroups($tasks),
+                'task_groups' => $this->taskGroups($team, $tasks),
             ],
         ]);
     }
 
-    protected function assigneeOptions(): array
+    protected function assigneeOptions(Team $team): array
     {
         return [
             [
                 'value' => null,
                 'label' => 'Unassigned',
             ],
-            ...User::query()
+            ...$team->users()
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (User $user): array => [
@@ -97,7 +100,7 @@ class ProjectDetailsPageController extends Controller
         ];
     }
 
-    protected function taskGroups(Collection $tasks): array
+    protected function taskGroups(Team $team, Collection $tasks): array
     {
         return $tasks
             ->groupBy(fn (Task $task): string => $task->assignee_user_id ? sprintf('user:%s', $task->assignee_user_id) : 'unassigned')
@@ -124,9 +127,9 @@ class ProjectDetailsPageController extends Controller
                         'end_date' => $task->end_date?->toDateString(),
                         'progress' => $task->progress,
                         'completed' => $task->completed,
-                        'update_url' => route('projects.tasks.update', [$task->project_id, $task]),
-                        'duplicate_url' => route('projects.tasks.duplicate', [$task->project_id, $task]),
-                        'destroy_url' => route('projects.tasks.destroy', [$task->project_id, $task]),
+                        'update_url' => route('projects.tasks.update', [$team, $task->project_id, $task]),
+                        'duplicate_url' => route('projects.tasks.duplicate', [$team, $task->project_id, $task]),
+                        'destroy_url' => route('projects.tasks.destroy', [$team, $task->project_id, $task]),
                     ])
                     ->values()
                     ->all(),
@@ -137,5 +140,13 @@ class ProjectDetailsPageController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    protected function currentTeam(Request $request): Team
+    {
+        /** @var Team $team */
+        $team = $request->route('team');
+
+        return $team;
     }
 }

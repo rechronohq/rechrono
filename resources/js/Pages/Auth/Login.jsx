@@ -13,7 +13,7 @@ export default function Login() {
     });
 
     return (
-        <AuthLayout title="Sign in" subtitle="Use your team account, or one of the bootstrap admin accounts for initial setup.">
+        <AuthLayout title="Sign in" subtitle="Use your Rechrono account to open your team workspace.">
             {flash.status ? (
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                     {flash.status}
@@ -57,6 +57,10 @@ export default function Login() {
                 <Button type="submit" className="w-full" disabled={form.processing}>
                     Sign in
                 </Button>
+
+                <div className="text-center text-sm text-stone-500">
+                    <Link href="/register" className="transition hover:text-stone-900">Create an account</Link>
+                </div>
             </form>
         </AuthLayout>
     );

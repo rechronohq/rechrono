@@ -1,10 +1,11 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 
 import AppShell from '@/Layouts/AppShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export default function ProfileEdit({ user }) {
+    const { routes } = usePage().props;
     const profileForm = useForm({
         name: user.name,
         email: user.email,
@@ -31,7 +32,7 @@ export default function ProfileEdit({ user }) {
                         className="space-y-4"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            profileForm.patch('/profile');
+                            profileForm.patch(routes.profileEdit);
                         }}
                     >
                         <div className="space-y-2">
@@ -97,7 +98,7 @@ export default function ProfileEdit({ user }) {
                         className="space-y-4"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            deleteForm.delete('/profile');
+                            deleteForm.delete(routes.profileEdit);
                         }}
                     >
                         <div className="space-y-2">

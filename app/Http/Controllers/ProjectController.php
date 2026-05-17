@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Team;
 use App\Support\TimelinePayloadBuilder;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,7 @@ class ProjectController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $team = $this->currentTeam($request);
         $validated = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -31,16 +33,16 @@ class ProjectController extends Controller
             'show_weekends' => ['sometimes', 'boolean'],
         ])->validate();
 
-        $parent = $this->validatedParentProject($validated['parent_id'] ?? null);
+        $parent = $this->validatedParentProject($team, $validated['parent_id'] ?? null);
 
-        $project = Project::query()->create([
+        $project = $team->projects()->create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'is_template' => false,
             'parent_id' => $parent?->id,
         ]);
 
-        $allProjects = $this->allVisibleProjects();
+        $allProjects = $this->allVisibleProjects($team);
         $selectedProjectIds = collect($validated['selected_project_ids'] ?? [])
             ->push($project->id)
             ->unique()
@@ -56,12 +58,12 @@ class ProjectController extends Controller
             ...$this->timelinePayload($request, $selectedProjects, $allProjects, $selectedProjectIds),
             'project' => [
                 'id' => $project->id,
-                'show_url' => route('projects.show', $project),
+                'show_url' => route('projects.show', [$team, $project]),
             ],
         ]);
     }
 
-    public function update(Request $request, Project $project): JsonResponse
+    public function update(Request $request, Team $team, Project $project): JsonResponse
     {
         $validated = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
@@ -74,7 +76,7 @@ class ProjectController extends Controller
             'show_weekends' => ['sometimes', 'boolean'],
         ])->validate();
 
-        $parent = $this->validatedParentProject($validated['parent_id'] ?? null, $project);
+        $parent = $this->validatedParentProject($team, $validated['parent_id'] ?? null, $project);
 
         $project->update([
             'name' => $validated['name'],
@@ -88,12 +90,12 @@ class ProjectController extends Controller
             ...$this->timelinePayloadForRequest($request, $project),
             'project' => [
                 'id' => $project->id,
-                'show_url' => route('projects.show', $project),
+                'show_url' => route('projects.show', [$team, $project]),
             ],
         ]);
     }
 
-    public function duplicate(Request $request, Project $project): JsonResponse
+    public function duplicate(Request $request, Team $team, Project $project): JsonResponse
     {
         DB::transaction(function () use ($project): void {
             $this->duplicateProjectTree($project, [
@@ -104,13 +106,13 @@ class ProjectController extends Controller
         return response()->json($this->timelinePayloadForRequest($request, $project->fresh()));
     }
 
-    public function saveAsTemplate(Request $request, Project $project): JsonResponse
+    public function saveAsTemplate(Request $request, Team $team, Project $project): JsonResponse
     {
         abort_if($project->is_template, 422, 'Templates cannot be converted into templates again.');
 
-        DB::transaction(function () use ($project): void {
+        DB::transaction(function () use ($team, $project): void {
             $this->duplicateProjectTree($project, [
-                'name' => $this->duplicateName($project->name, Project::query()->pluck('name')->all(), 'Template'),
+                'name' => $this->duplicateName($project->name, $team->projects()->pluck('name')->all(), 'Template'),
                 'is_template' => true,
                 'clear_assignees' => true,
                 'reset_completion' => true,
@@ -122,6 +124,7 @@ class ProjectController extends Controller
 
     public function storeFromTemplate(Request $request): JsonResponse
     {
+        $team = $this->currentTeam($request);
         $validated = Validator::make($request->all(), [
             'template_project_id' => ['required', 'uuid', 'exists:projects,id'],
             'name' => ['required', 'string', 'max:255'],
@@ -137,10 +140,10 @@ class ProjectController extends Controller
         ])->validate();
 
         /** @var Project $template */
-        $template = Project::query()->findOrFail($validated['template_project_id']);
+        $template = $team->projects()->findOrFail($validated['template_project_id']);
         abort_unless($template->is_template, 422, 'Selected project is not a template.');
 
-        $parent = $this->validatedParentProject($validated['parent_id'] ?? null);
+        $parent = $this->validatedParentProject($team, $validated['parent_id'] ?? null);
         $templateTasks = Task::query()
             ->where('project_id', $template->id)
             ->get(['start_date', 'end_date']);
@@ -161,7 +164,7 @@ class ProjectController extends Controller
             ]);
         });
 
-        $allProjects = $this->allVisibleProjects();
+        $allProjects = $this->allVisibleProjects($team);
         $selectedProjectIds = collect($validated['selected_project_ids'] ?? [])
             ->push($project->id)
             ->unique()
@@ -175,21 +178,22 @@ class ProjectController extends Controller
                 ...$this->timelinePayload($request, $selectedProjects, $allProjects, $selectedProjectIds),
                 'project' => [
                     'id' => $project->id,
-                    'show_url' => route('projects.show', $project),
+                    'show_url' => route('projects.show', [$team, $project]),
                 ],
             ],
         );
     }
 
-    public function destroy(Request $request, Project $project): JsonResponse
+    public function destroy(Request $request, Team $team, Project $project): JsonResponse
     {
-        $this->deleteProjectTrees([$project->id]);
+        $this->deleteProjectTrees($team, [$project->id]);
 
         return response()->json($this->timelinePayloadForRequest($request));
     }
 
     public function bulkAction(Request $request): JsonResponse
     {
+        $team = $this->currentTeam($request);
         $validated = $request->validate([
             'action' => ['required', 'in:archive,unarchive,change-parent,delete'],
             'project_ids' => ['required', 'array', 'min:1'],
@@ -198,18 +202,18 @@ class ProjectController extends Controller
         ]);
 
         if ($validated['action'] === 'delete') {
-            $this->deleteProjectTrees($validated['project_ids']);
+            $this->deleteProjectTrees($team, $validated['project_ids']);
 
             return response()->json(['ok' => true]);
         }
 
         if ($validated['action'] === 'change-parent') {
-            $this->bulkChangeParent($validated['project_ids'], $validated['parent_id'] ?? null);
+            $this->bulkChangeParent($team, $validated['project_ids'], $validated['parent_id'] ?? null);
 
             return response()->json(['ok' => true]);
         }
 
-        Project::query()
+        $team->projects()
             ->whereIn('id', $validated['project_ids'])
             ->update([
                 'is_active' => $validated['action'] === 'unarchive',
@@ -219,13 +223,13 @@ class ProjectController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    protected function validatedParentProject(?string $parentId, ?Project $project = null): ?Project
+    protected function validatedParentProject(Team $team, ?string $parentId, ?Project $project = null): ?Project
     {
         if ($parentId === null) {
             return null;
         }
 
-        $parent = Project::query()->findOrFail($parentId);
+        $parent = $team->projects()->findOrFail($parentId);
 
         if ($project && $parent->id === $project->id) {
             abort(422, 'A project cannot be its own parent.');
@@ -238,28 +242,28 @@ class ProjectController extends Controller
         return $parent;
     }
 
-    protected function bulkChangeParent(array $projectIds, ?string $parentId): void
+    protected function bulkChangeParent(Team $team, array $projectIds, ?string $parentId): void
     {
         if ($parentId !== null && in_array($parentId, $projectIds, true)) {
             abort(422, 'Selected projects cannot be moved under another selected project.');
         }
 
         /** @var Collection<int, Project> $projects */
-        $projects = Project::query()
+        $projects = $team->projects()
             ->whereIn('id', $projectIds)
             ->get();
 
         $parent = null;
 
         if ($parentId !== null) {
-            $parent = $this->validatedParentProject($parentId);
+            $parent = $this->validatedParentProject($team, $parentId);
 
             foreach ($projects as $project) {
-                $this->validatedParentProject($parentId, $project);
+                $this->validatedParentProject($team, $parentId, $project);
             }
         }
 
-        Project::query()
+        $team->projects()
             ->whereIn('id', $projectIds)
             ->update([
                 'parent_id' => $parent?->id,
@@ -267,10 +271,10 @@ class ProjectController extends Controller
             ]);
     }
 
-    protected function deleteProjectTrees(array $rootProjectIds): void
+    protected function deleteProjectTrees(Team $team, array $rootProjectIds): void
     {
-        DB::transaction(function () use ($rootProjectIds): void {
-            $projects = Project::query()->get(['id', 'parent_id']);
+        DB::transaction(function () use ($team, $rootProjectIds): void {
+            $projects = $team->projects()->get(['id', 'parent_id']);
             $projectIds = collect($rootProjectIds)
                 ->flatMap(function (string $projectId) use ($projects): array {
                     /** @var Project|null $project */
@@ -296,17 +300,18 @@ class ProjectController extends Controller
                 ->update(['dependency_id' => null]);
 
             Task::query()->whereIn('project_id', $projectIds)->delete();
-            Project::query()->whereIn('id', $projectIds)->delete();
+            $team->projects()->whereIn('id', $projectIds)->delete();
         });
     }
 
     protected function duplicateProjectTree(Project $sourceProject, array $options = []): Project
     {
         $projectCopy = Project::query()->create([
+            'team_id' => $sourceProject->team_id,
             'name' => $options['name'] ?? (
                 ($options['preserve_names'] ?? false)
                     ? $sourceProject->name
-                    : $this->duplicateName($sourceProject->name, Project::query()->pluck('name')->all())
+                    : $this->duplicateName($sourceProject->name, Project::query()->where('team_id', $sourceProject->team_id)->pluck('name')->all())
             ),
             'description' => $sourceProject->description,
             'is_template' => $options['is_template'] ?? $sourceProject->is_template,
@@ -418,7 +423,8 @@ class ProjectController extends Controller
 
     protected function timelinePayloadForRequest(Request $request, ?Project $fallbackProject = null): array
     {
-        $allProjects = $this->allVisibleProjects();
+        $team = $this->currentTeam($request);
+        $allProjects = $this->allVisibleProjects($team);
         $selectedProjectIds = collect($request->input('selected_project_ids', []))
             ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
             ->intersect($allProjects->pluck('id'))
@@ -450,13 +456,22 @@ class ProjectController extends Controller
             collect($request->input('collapsed_project_ids', []))
                 ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
                 ->all(),
+            team: $this->currentTeam($request),
         );
     }
 
-    protected function allVisibleProjects(): Collection
+    protected function allVisibleProjects(Team $team): Collection
     {
-        return Project::query()
+        return $team->projects()
             ->timelineVisible()
             ->get();
+    }
+
+    protected function currentTeam(Request $request): Team
+    {
+        /** @var Team $team */
+        $team = $request->route('team');
+
+        return $team;
     }
 }

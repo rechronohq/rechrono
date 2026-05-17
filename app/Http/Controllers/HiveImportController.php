@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Imports\Hive\HiveCsvImportPreviewService;
 use App\Imports\Hive\HiveCsvImportService;
+use App\Models\Team;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -20,9 +21,10 @@ class HiveImportController extends Controller
     public function preview(Request $request): JsonResponse
     {
         $validated = $this->validatedFile($request);
+        $team = $this->currentTeam($request);
 
         try {
-            $preview = $this->previewService->preview($validated['file']);
+            $preview = $this->previewService->preview($validated['file'], $team);
         } catch (InvalidArgumentException $exception) {
             $this->throwFileValidationException($exception);
         }
@@ -33,9 +35,10 @@ class HiveImportController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $this->validatedFile($request);
+        $team = $this->currentTeam($request);
 
         try {
-            $result = $this->importService->import($validated['file']);
+            $result = $this->importService->import($validated['file'], $team);
         } catch (InvalidArgumentException $exception) {
             $this->throwFileValidationException($exception);
         }
@@ -55,5 +58,13 @@ class HiveImportController extends Controller
         throw ValidationException::withMessages([
             'file' => $exception->getMessage(),
         ]);
+    }
+
+    protected function currentTeam(Request $request): Team
+    {
+        /** @var Team $team */
+        $team = $request->route('team');
+
+        return $team;
     }
 }

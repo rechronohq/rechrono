@@ -3,16 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Team;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProjectCreatePageController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(Request $request): Response
     {
+        $team = $this->currentTeam($request);
+
         return Inertia::render('Projects/Create', [
-            'projects' => $this->projectOptions(),
-            'templateProjects' => Project::query()
+            'projects' => $this->projectOptions($team),
+            'templateProjects' => $team->projects()
                 ->templates()
                 ->roots()
                 ->orderBy('name')
@@ -24,9 +28,9 @@ class ProjectCreatePageController extends Controller
         ]);
     }
 
-    protected function projectOptions(): array
+    protected function projectOptions(Team $team): array
     {
-        return Project::query()
+        return $team->projects()
             ->plannerVisible()
             ->active()
             ->get()
@@ -35,5 +39,13 @@ class ProjectCreatePageController extends Controller
                 'name' => $project->name,
                 'parent_id' => $project->parent_id,
             ])->all();
+    }
+
+    protected function currentTeam(Request $request): Team
+    {
+        /** @var Team $team */
+        $team = $request->route('team');
+
+        return $team;
     }
 }

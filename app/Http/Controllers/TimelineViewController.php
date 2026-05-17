@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Team;
 use App\Models\TimelineView;
 use App\Support\TimelinePayloadBuilder;
 use Illuminate\Http\JsonResponse;
@@ -17,11 +18,11 @@ class TimelineViewController extends Controller
         protected TimelinePayloadBuilder $timelinePayloadBuilder,
     ) {}
 
-    public function show(Request $request, TimelineView $timelineView): Response
+    public function show(Request $request, Team $team, TimelineView $timelineView): Response
     {
         $this->abortUnlessOwner($request, $timelineView);
 
-        $allProjects = Project::query()->timelineVisible()->get();
+        $allProjects = $team->projects()->timelineVisible()->get();
         $selectedProjectIds = $this->normalizeProjectIds($allProjects, $timelineView->project_ids ?? []);
         $visibleProjectIds = Project::expandSelectedIds($allProjects, $selectedProjectIds);
         $selectedProjects = $allProjects->whereIn('id', $visibleProjectIds)->values();
@@ -35,27 +36,32 @@ class TimelineViewController extends Controller
                 $timelineView->show_weekends,
                 $timelineView->collapsed_project_ids ?? [],
                 $timelineView->timeline_density,
+                $team,
             ),
             'activeTimelineViewId' => $timelineView->id,
-            'createTaskUrlTemplate' => route('projects.tasks.store', ['project' => '__PROJECT__']),
-            'duplicateTaskUrlTemplate' => route('projects.tasks.duplicate', ['project' => '__PROJECT__', 'task' => '__TASK__']),
-            'reorderTaskUrlTemplate' => route('projects.tasks.reorder', ['project' => '__PROJECT__']),
-            'updateTaskUrlTemplate' => route('projects.tasks.update', ['project' => '__PROJECT__', 'task' => '__TASK__']),
+            'createTaskUrlTemplate' => route('projects.tasks.store', ['team' => $team, 'project' => '__PROJECT__']),
+            'duplicateTaskUrlTemplate' => route('projects.tasks.duplicate', ['team' => $team, 'project' => '__PROJECT__', 'task' => '__TASK__']),
+            'reorderTaskUrlTemplate' => route('projects.tasks.reorder', ['team' => $team, 'project' => '__PROJECT__']),
+            'updateTaskUrlTemplate' => route('projects.tasks.update', ['team' => $team, 'project' => '__PROJECT__', 'task' => '__TASK__']),
         ]);
     }
 
     public function store(Request $request): JsonResponse
     {
+        $team = $this->currentTeam($request);
         $validated = $this->validatedPayload($request, includeSettings: true);
 
-        $timelineView = $request->user()->timelineViews()->create($validated);
+        $timelineView = $request->user()->timelineViews()->create([
+            ...$validated,
+            'team_id' => $team->id,
+        ]);
 
         return response()->json([
             'view' => $this->viewPayload($timelineView),
         ], 201);
     }
 
-    public function update(Request $request, TimelineView $timelineView): JsonResponse
+    public function update(Request $request, Team $team, TimelineView $timelineView): JsonResponse
     {
         $this->abortUnlessOwner($request, $timelineView);
 
@@ -68,7 +74,7 @@ class TimelineViewController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, TimelineView $timelineView): JsonResponse
+    public function destroy(Request $request, Team $team, TimelineView $timelineView): JsonResponse
     {
         $this->abortUnlessOwner($request, $timelineView);
 
@@ -137,12 +143,22 @@ class TimelineViewController extends Controller
 
     protected function viewPayload(TimelineView $timelineView): array
     {
+        $team = $timelineView->team;
+
         return [
             'id' => $timelineView->id,
             'name' => $timelineView->name,
-            'url' => route('timeline-views.show', $timelineView),
-            'update_url' => route('timeline-views.update', $timelineView),
-            'delete_url' => route('timeline-views.destroy', $timelineView),
+            'url' => route('timeline-views.show', [$team, $timelineView]),
+            'update_url' => route('timeline-views.update', [$team, $timelineView]),
+            'delete_url' => route('timeline-views.destroy', [$team, $timelineView]),
         ];
+    }
+
+    protected function currentTeam(Request $request): Team
+    {
+        /** @var Team $team */
+        $team = $request->route('team');
+
+        return $team;
     }
 }

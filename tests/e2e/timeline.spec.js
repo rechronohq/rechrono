@@ -319,6 +319,7 @@ test('timeline views can be saved loaded renamed and deleted from the sidebar', 
     await page.getByTestId('timeline-density-compact').click();
     await page.keyboard.press('Escape');
 
+    await page.getByTestId('timeline-settings-trigger').click();
     await page.getByRole('button', { name: 'Save view' }).click();
     await page.getByLabel('View name').fill('Website compact');
     const saveResponsePromise = page.waitForResponse((response) => (
@@ -364,6 +365,7 @@ test('active timeline view saves changed settings back to the saved view', async
     await projectRow.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Open' }).click();
 
+    await page.getByTestId('timeline-settings-trigger').click();
     await page.getByRole('button', { name: 'Save view' }).click();
     await page.getByLabel('View name').fill('Editable view');
     await page.getByRole('button', { name: 'Save timeline view' }).click();

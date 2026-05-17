@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -18,11 +19,13 @@ class TimelinePayloadBuilder
         bool $showWeekends = false,
         array $collapsedProjectIds = [],
         ?string $timelineDensity = null,
+        ?Team $team = null,
     ): array {
+        $team ??= $allProjects->first()?->team;
         $selectedProjects = Project::orderedHierarchy($selectedProjects);
         $allProjects = Project::orderedHierarchy($allProjects);
         $templateProjects = Project::orderedHierarchy(
-            Project::query()->templates()->get()
+            ($team ? $team->projects() : Project::query())->templates()->get()
         )->whereNull('parent_id')->values();
         $collapsedProjectIds = collect($collapsedProjectIds)
             ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
@@ -38,7 +41,7 @@ class TimelinePayloadBuilder
                 'filter_value' => 'unassigned',
                 'label' => 'Unassigned',
             ],
-            ...User::query()
+            ...($team ? $team->users() : User::query())
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (User $user): array => [
@@ -79,7 +82,10 @@ class TimelinePayloadBuilder
         [$rangeStart, $rangeEnd] = $this->dateRange($tasks);
 
         return [
-            'projects' => $allProjects->map(fn (Project $project): array => [
+            'projects' => $allProjects->map(function (Project $project) use ($selectedProjectIds, $team): array {
+                $routeTeam = $team ?? $project->team;
+
+                return [
                 'id' => $project->id,
                 'name' => $project->name,
                 'description' => $project->description,
@@ -88,13 +94,14 @@ class TimelinePayloadBuilder
                 'parent_id' => $project->parent_id,
                 'depth' => $project->parent_id ? 1 : 0,
                 'selected' => in_array($project->id, $selectedProjectIds, true),
-                'destroy_url' => route('projects.destroy', $project),
-                'duplicate_url' => route('projects.duplicate', $project),
-                'edit_url' => route('projects.edit', $project),
-                'show_url' => route('projects.show', $project),
-                'template_url' => route('projects.template', $project),
-                'timeline_url' => route('projects.timeline', $project),
-            ])->all(),
+                'destroy_url' => route('projects.destroy', [$routeTeam, $project]),
+                'duplicate_url' => route('projects.duplicate', [$routeTeam, $project]),
+                'edit_url' => route('projects.edit', [$routeTeam, $project]),
+                'show_url' => route('projects.show', [$routeTeam, $project]),
+                'template_url' => route('projects.template', [$routeTeam, $project]),
+                'timeline_url' => route('projects.timeline', [$routeTeam, $project]),
+                ];
+            })->all(),
             'template_projects' => $templateProjects->map(fn (Project $project): array => [
                 'id' => $project->id,
                 'name' => $project->name,

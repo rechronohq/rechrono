@@ -57,7 +57,7 @@ export default function ProjectsEdit({ project, projects }) {
                 onSubmit={handleSubmit}
                 title="Edit project"
                 submitLabel="Save project"
-                onCancel={() => window.location.assign(toAppPath(`/projects/${project.id}`))}
+                onCancel={() => window.location.assign(toAppPath(project.show_url))}
             />
         </ProjectsFormPage>
     );

@@ -18,6 +18,7 @@ class Project extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
+        'team_id',
         'name',
         'description',
         'is_template',
@@ -44,6 +45,11 @@ class Project extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'parent_id');
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
     }
 
     public function children(): HasMany

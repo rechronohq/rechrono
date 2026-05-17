@@ -29,7 +29,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('planner', absolute: false));
+        return redirect()->intended(route('planner', $request->user()->team, absolute: false));
     }
 
     /**

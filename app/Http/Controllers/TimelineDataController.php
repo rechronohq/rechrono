@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Team;
 use App\Support\TimelinePayloadBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ class TimelineDataController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $allProjects = Project::query()->timelineVisible()->get();
+        $team = $this->currentTeam($request);
+        $allProjects = $team->projects()->timelineVisible()->get();
         $selectedProjectIds = collect($request->query('projects', []))
             ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
             ->values();
@@ -51,7 +53,16 @@ class TimelineDataController extends Controller
                 $selectedAssigneeFilters->all(),
                 $showWeekends,
                 $collapsedProjectIds->all(),
+                team: $team,
             ),
         );
+    }
+
+    protected function currentTeam(Request $request): Team
+    {
+        /** @var Team $team */
+        $team = $request->route('team');
+
+        return $team;
     }
 }

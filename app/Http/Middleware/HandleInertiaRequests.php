@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Team;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -16,48 +17,58 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
+        $team = $request->route('team') instanceof Team
+            ? $request->route('team')
+            : $request->user()?->team;
+
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user()?->only('id', 'name', 'email', 'is_admin'),
+                'team' => $team ? [
+                    'id' => $team->id,
+                    'name' => $team->name,
+                    'slug' => $team->slug,
+                    'is_owner' => $team->owner_user_id === $request->user()?->id,
+                ] : null,
             ],
             'flash' => [
                 'status' => fn (): ?string => $request->session()->get('status'),
             ],
             'routes' => [
                 'apps' => [
-                    'planner' => route('planner'),
-                    'tasks' => route('planner'),
-                    'projects' => route('projects.index'),
+                    'planner' => $team ? route('planner', $team) : route('login'),
+                    'tasks' => $team ? route('planner', $team) : route('login'),
+                    'projects' => $team ? route('projects.index', $team) : route('login'),
                 ],
-                'planner' => route('planner'),
-                'tasks' => route('tasks'),
+                'planner' => $team ? route('planner', $team) : route('login'),
+                'tasks' => $team ? route('tasks', $team) : route('login'),
                 'projects' => [
-                    'create' => route('projects.create'),
-                    'edit' => route('projects.edit', ['project' => '__PROJECT__']),
-                    'index' => route('projects.index'),
+                    'create' => $team ? route('projects.create', $team) : route('login'),
+                    'edit' => $team ? route('projects.edit', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
+                    'index' => $team ? route('projects.index', $team) : route('login'),
                 ],
-                'projectsApp' => route('projects.index'),
-                'tasksData' => route('tasks.data'),
-                'timelineViewsStore' => route('timeline-views.store'),
-                'importsHiveStore' => route('imports.hive.store'),
-                'projectsStore' => route('projects.store'),
-                'projectsFromTemplate' => route('projects.from-template'),
-                'projectsBulkAction' => route('projects.bulk-action'),
-                'projectsTemplate' => route('projects.template', ['project' => '__PROJECT__']),
-                'projectsUpdate' => route('projects.update', ['project' => '__PROJECT__']),
-                'projectsDuplicate' => route('projects.duplicate', ['project' => '__PROJECT__']),
-                'projectsDestroy' => route('projects.destroy', ['project' => '__PROJECT__']),
-                'profileEdit' => route('profile.edit'),
+                'projectsApp' => $team ? route('projects.index', $team) : route('login'),
+                'tasksData' => $team ? route('tasks.data', $team) : route('login'),
+                'timelineViewsStore' => $team ? route('timeline-views.store', $team) : route('login'),
+                'importsHiveStore' => $team ? route('imports.hive.store', $team) : route('login'),
+                'projectsStore' => $team ? route('projects.store', $team) : route('login'),
+                'projectsFromTemplate' => $team ? route('projects.from-template', $team) : route('login'),
+                'projectsBulkAction' => $team ? route('projects.bulk-action', $team) : route('login'),
+                'projectsTemplate' => $team ? route('projects.template', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
+                'projectsUpdate' => $team ? route('projects.update', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
+                'projectsDuplicate' => $team ? route('projects.duplicate', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
+                'projectsDestroy' => $team ? route('projects.destroy', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
+                'profileEdit' => $team ? route('profile.edit', $team) : route('login'),
                 'logout' => route('logout'),
             ],
             'timelineViews' => fn (): array => $request->user()
                 ? $request->user()->timelineViews()->get()->map(fn ($view): array => [
                     'id' => $view->id,
                     'name' => $view->name,
-                    'url' => route('timeline-views.show', $view),
-                    'update_url' => route('timeline-views.update', $view),
-                    'delete_url' => route('timeline-views.destroy', $view),
+                    'url' => $team ? route('timeline-views.show', [$team, $view]) : route('login'),
+                    'update_url' => $team ? route('timeline-views.update', [$team, $view]) : route('login'),
+                    'delete_url' => $team ? route('timeline-views.destroy', [$team, $view]) : route('login'),
                 ])->all()
                 : [],
         ];

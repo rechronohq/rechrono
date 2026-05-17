@@ -110,7 +110,7 @@ export default function ProjectsIndex({ projects }) {
     }
 
     function handleStatusFilterChange(status) {
-        router.get(toAppPath('/projects'), status === 'active' ? {} : { status }, {
+        router.get(toAppPath(props.routes?.projects?.index ?? '/projects'), status === 'active' ? {} : { status }, {
             preserveScroll: true,
             preserveState: true,
             replace: true,
@@ -217,7 +217,7 @@ export default function ProjectsIndex({ projects }) {
                         Import
                     </Button>
                     <Button type="button" asChild>
-                        <Link href={toAppPath('/projects/new')}>
+                        <Link href={toAppPath(props.routes?.projects?.create ?? '/projects/new')}>
                         New Project
                         </Link>
                     </Button>
