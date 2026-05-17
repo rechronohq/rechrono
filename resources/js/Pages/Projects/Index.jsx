@@ -211,23 +211,15 @@ export default function ProjectsIndex({ projects }) {
             title="Projects"
             activeApp="projects"
             container="wide"
-            actions={(
-                <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" onClick={openHiveImportDialog}>
-                        Import
-                    </Button>
-                    <Button type="button" asChild>
-                        <Link href={toAppPath(props.routes?.projects?.create ?? '/projects/new')}>
-                        New Project
-                        </Link>
-                    </Button>
-                </div>
-            )}
         >
             <div className="projects-app-page">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Select value={projects.status_filter ?? 'active'} onChange={(event) => handleStatusFilterChange(event.target.value)}>
+                <div className="projects-index-toolbar">
+                    <div className="projects-index-toolbar__primary">
+                        <Select
+                            className="projects-index-status-filter"
+                            value={projects.status_filter ?? 'active'}
+                            onChange={(event) => handleStatusFilterChange(event.target.value)}
+                        >
                             {(projects.status_options ?? []).map((option) => (
                                 <option key={option.value} value={option.value}>
                                     {option.label}
@@ -235,14 +227,11 @@ export default function ProjectsIndex({ projects }) {
                             ))}
                         </Select>
                         {selectedIds.length > 0 ? (
-                            <div className="text-sm text-stone-500">
-                                {selectedIds.length} selected
-                            </div>
-                        ) : null}
-                    </div>
-
-                    {selectedIds.length > 0 ? (
-                        <div className="flex flex-wrap items-end gap-2">
+                            <>
+                                <div className="projects-index-toolbar__selected-count">
+                                    {selectedIds.length} selected
+                                </div>
+                                <div className="flex flex-wrap items-end gap-2">
                             <div className="min-w-56">
                                 <Label htmlFor="projects-bulk-parent" className="sr-only">Parent for selected projects</Label>
                                 <Select
@@ -284,8 +273,26 @@ export default function ProjectsIndex({ projects }) {
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                        </div>
-                    ) : null}
+                                </div>
+                            </>
+                        ) : null}
+                    </div>
+                    <div className="projects-index-actions" data-testid="projects-index-actions">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="px-2 text-stone-600"
+                            onClick={openHiveImportDialog}
+                        >
+                            Import
+                        </Button>
+                        <Button type="button" size="sm" asChild>
+                            <Link href={toAppPath(props.routes?.projects?.create ?? '/projects/new')}>
+                                New Project
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
                 <ProjectsTable
                     isSubmitting={isSubmitting}

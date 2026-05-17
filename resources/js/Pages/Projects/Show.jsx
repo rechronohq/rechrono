@@ -1,5 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { CalendarDays, CheckCircle2, Circle, FolderKanban, ListTodo, MoreHorizontal, Plus, UsersRound } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Circle, ListTodo, MoreHorizontal, Plus, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -337,33 +337,30 @@ export default function ProjectsShow({ project }) {
             activeApp="projects"
             container="wide"
             context={context}
-            actions={(
-                <div className="flex items-center gap-2">
-                    <Link href={toAppPath(project.edit_url)} className={cn(buttonVariants({ variant: 'outline' }))}>
-                        {project.is_template ? 'Edit template' : 'Edit project'}
-                    </Link>
-                    {!project.is_template ? (
-                        <Link href={toAppPath(project.timeline_url)} role="button" className={cn(buttonVariants({ variant: 'default' }))}>
-                            Open timeline
-                        </Link>
-                    ) : null}
-                    <ProjectActionsDropdown
-                        disabled={isSubmitting}
-                        onAction={handleProjectAction}
-                        project={project}
-                    />
-                </div>
-            )}
         >
             <div className="projects-detail-page">
+                <div className="projects-detail-intro">
+                    <div className="projects-detail-intro__heading">
+                        <h1 id="project-detail-title" className="projects-detail-title">{project.name}</h1>
+                        {!project.is_active ? <span className="projects-detail-status">Archived</span> : null}
+                    </div>
+                    <div className="projects-detail-actions" data-testid="project-detail-actions">
+                        <Link
+                            href={toAppPath(project.edit_url)}
+                            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'px-2 text-stone-600')}
+                        >
+                            Edit
+                        </Link>
+                        <ProjectActionsDropdown
+                            disabled={isSubmitting}
+                            onAction={handleProjectAction}
+                            project={project}
+                        />
+                    </div>
+                </div>
+
                 <section className="projects-detail-hero" aria-labelledby="project-detail-title">
                     <div className="projects-detail-hero__content">
-                        <div className="projects-detail-kicker">
-                            <FolderKanban className="h-4 w-4" aria-hidden="true" />
-                            {project.is_template ? 'Template' : 'Project'}
-                            {!project.is_active ? <span className="projects-detail-status">Archived</span> : null}
-                        </div>
-                        <h1 id="project-detail-title" className="projects-detail-title">{project.name}</h1>
                         {project.description?.trim() ? (
                             <p className="projects-detail-description">{project.description}</p>
                         ) : null}

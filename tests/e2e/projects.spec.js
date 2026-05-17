@@ -33,13 +33,14 @@ test('projects renders through the shared app scaffold with a sortable data tabl
 
     await expect(page.getByTestId('app-shell')).toBeVisible();
     await expect(page.getByTestId('app-context-bar-title')).toHaveText('Projects');
+    await expect(page.getByTestId('app-context-bar-actions')).toHaveCount(0);
+    await expect(page.getByTestId('projects-index-actions').getByRole('button', { name: 'Import' })).toBeVisible();
+    await expect(page.getByTestId('projects-index-actions').getByRole('link', { name: 'New Project' })).toBeVisible();
     await expect(page.getByTestId('projects-table')).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Start' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'End' })).toBeVisible();
     await expect(page.getByTestId('projects-table').getByRole('button', { name: 'Name' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Import' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible();
     await expect(page.getByTestId('projects-table').getByRole('button', { name: 'Start' })).toBeVisible();
     await expect(page.getByTestId('projects-table').getByRole('button', { name: 'End' })).toBeVisible();
 });
@@ -87,7 +88,9 @@ test('only the project name opens the project detail page', async ({ page }) => 
     await expect(page).toHaveURL(/\/projects\/.+/);
     await expect(page.getByTestId('app-context-bar-title')).toHaveText('Projects');
     await expect(page.getByTestId('app-context-breadcrumb')).toContainText('Default Planning Board');
-    await expect(page.getByRole('button', { name: 'Open timeline' })).toBeVisible();
+    await expect(page.getByTestId('app-context-bar-actions')).toHaveCount(0);
+    await expect(page.getByTestId('project-detail-actions').getByRole('link', { name: 'Edit' })).toBeVisible();
+    await expect(page.getByTestId('project-detail-actions').getByRole('link', { name: 'Timeline' })).toHaveCount(0);
 });
 
 test('projects table exposes timeline-style project actions from the row menu', async ({ page }) => {
@@ -211,18 +214,18 @@ test('projects detail can navigate to a standalone edit page', async ({ page }) 
 
     await page.goto('/projects');
     await page.getByRole('row', { name: /Default Planning Board/ }).getByRole('link', { name: 'Default Planning Board' }).click();
-    await page.getByRole('link', { name: 'Edit project' }).click();
+    await page.getByTestId('project-detail-actions').getByRole('link', { name: 'Edit' }).click();
 
     await expect(page).toHaveURL(/\/projects\/.+\/edit$/);
     await expect(page.getByTestId('app-context-bar-title')).toContainText('Edit');
 });
 
-test('project detail exposes project actions from the header menu', async ({ page }) => {
+test('project detail exposes project actions from the page menu', async ({ page }) => {
     await login(page);
 
     await page.goto('/projects');
     await page.getByRole('row', { name: /Default Planning Board/ }).getByRole('link', { name: 'Default Planning Board' }).click();
-    await page.getByRole('button', { name: 'More actions for Default Planning Board' }).focus();
+    await page.getByTestId('project-detail-actions').getByRole('button', { name: 'More actions for Default Planning Board' }).focus();
     await page.keyboard.press('Enter');
 
     await expect(page.getByRole('menuitem')).toHaveText([
@@ -441,7 +444,7 @@ test('project edit page can update planner fields', async ({ page }) => {
 
     await page.goto('/projects');
     await page.getByRole('row', { name: /Default Planning Board/ }).getByRole('link', { name: 'Default Planning Board' }).click();
-    await page.getByRole('link', { name: 'Edit project' }).click();
+    await page.getByTestId('project-detail-actions').getByRole('link', { name: 'Edit' }).click();
 
     await page.getByLabel('Description').fill('Updated planner project description.');
     await page.getByRole('button', { name: 'Save project' }).click();
