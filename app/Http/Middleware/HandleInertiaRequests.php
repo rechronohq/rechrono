@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
                     'planner' => $team ? route('planner', $team) : route('login'),
                     'tasks' => $team ? route('planner', $team) : route('login'),
                     'projects' => $team ? route('projects.index', $team) : route('login'),
+                    'imports' => $team ? route('imports.index', $team) : route('login'),
                 ],
                 'planner' => $team ? route('planner', $team) : route('login'),
                 'tasks' => $team ? route('tasks', $team) : route('login'),
@@ -47,6 +48,10 @@ class HandleInertiaRequests extends Middleware
                     'create' => $team ? route('projects.create', $team) : route('login'),
                     'edit' => $team ? route('projects.edit', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
                     'index' => $team ? route('projects.index', $team) : route('login'),
+                ],
+                'imports' => [
+                    'index' => $team ? route('imports.index', $team) : route('login'),
+                    'hive_store' => $team ? route('imports.hive.store', $team) : route('login'),
                 ],
                 'projectsApp' => $team ? route('projects.index', $team) : route('login'),
                 'tasksData' => $team ? route('tasks.data', $team) : route('login'),

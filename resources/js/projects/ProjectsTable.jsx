@@ -5,7 +5,7 @@ import {
     getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import TableEmptyStateRow from '@/components/data-table/TableEmptyStateRow';
 import SortableHeader from '@/components/data-table/SortableHeader';
@@ -22,9 +22,11 @@ import { formatDateDisplay } from '@/lib/formatters';
 import { toAppPath } from '@/lib/url';
 import { cn } from '@/lib/utils';
 import { ProjectActionsDropdown } from '@/projects/ProjectActionsDropdown';
+import { useProjectsMarquee } from '@/projects/useProjectsMarquee';
 
-export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onSelectionChange, onProjectAction }) {
+export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onProjectAction, onProjectContextMenu, onSelectionChange }) {
     const [sorting, setSorting] = useState([]);
+    const tableRef = useRef(null);
 
     function toggleRow(projectId, checked) {
         onSelectionChange((current) => checked
@@ -35,6 +37,38 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onSelec
     function toggleAll(checked) {
         onSelectionChange(checked ? rows.map((row) => row.id) : []);
     }
+
+    function applyMarqueeSelection(hitIds, modifiers) {
+        const idByKey = new Map(rows.map((row) => [String(row.id), row.id]));
+        const resolvedHitIds = hitIds
+            .map((id) => idByKey.get(String(id)) ?? null)
+            .filter((id) => id !== null);
+
+        onSelectionChange((current) => {
+            if (modifiers.metaKey || modifiers.ctrlKey) {
+                let nextSelectedIds = [...current];
+
+                for (const projectId of resolvedHitIds) {
+                    nextSelectedIds = nextSelectedIds.includes(projectId)
+                        ? nextSelectedIds.filter((selectedId) => selectedId !== projectId)
+                        : [...nextSelectedIds, projectId];
+                }
+
+                return nextSelectedIds;
+            }
+
+            if (modifiers.shiftKey) {
+                return Array.from(new Set([...current, ...resolvedHitIds]));
+            }
+
+            return resolvedHitIds;
+        });
+    }
+
+    const { handlePointerDownCapture, marqueeRect } = useProjectsMarquee({
+        containerRef: tableRef,
+        onSelect: applyMarqueeSelection,
+    });
 
     const allRowsSelected = rows.length > 0 && selectedIds.length === rows.length;
     const someRowsSelected = selectedIds.length > 0 && !allRowsSelected;
@@ -52,6 +86,8 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onSelec
             cell: ({ row }) => (
                 <SelectionCheckbox
                     checked={selectedIds.includes(row.original.id)}
+                    className="projects-table-row__select-checkbox"
+                    data-marquee-ignore
                     onCheckedChange={(checked) => toggleRow(row.original.id, Boolean(checked))}
                     onClick={(event) => event.stopPropagation()}
                     aria-label={`Select ${row.original.name}`}
@@ -113,8 +149,9 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onSelec
             header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }) => {
                 return (
-                    <div className="flex justify-end">
+                    <div className="flex justify-end" data-marquee-ignore>
                         <ProjectActionsDropdown
+                            className="projects-table-row__actions-button"
                             disabled={isSubmitting}
                             onAction={onProjectAction}
                             project={row.original}
@@ -138,7 +175,12 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onSelec
     });
 
     return (
-        <div data-testid="projects-table" className="projects-table-shell">
+        <div
+            ref={tableRef}
+            data-testid="projects-table"
+            className="projects-table-shell"
+            onPointerDownCapture={handlePointerDownCapture}
+        >
             <Table className="projects-table">
                 <TableHeader>
                     {table.getHeaderGroups().map((headerGroup) => (
@@ -163,7 +205,15 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onSelec
                                 row.original.depth === 1 && 'projects-table-row-subproject',
                                 !row.original.is_active && 'opacity-70',
                             )}
+                            data-project-id={row.original.id}
                             data-state={selectedIds.includes(row.original.id) ? 'selected' : undefined}
+                            onContextMenu={(event) => {
+                                event.preventDefault();
+                                onProjectContextMenu?.(row.original, {
+                                    x: event.clientX,
+                                    y: event.clientY,
+                                });
+                            }}
                         >
                             {row.getVisibleCells().map((cell) => (
                                 <TableCell
@@ -179,6 +229,18 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onSelec
                     ))}
                 </TableBody>
             </Table>
+            {marqueeRect ? (
+                <div
+                    aria-hidden
+                    className="projects-table-marquee-rect"
+                    style={{
+                        height: marqueeRect.bottom - marqueeRect.top,
+                        left: marqueeRect.left,
+                        top: marqueeRect.top,
+                        width: marqueeRect.right - marqueeRect.left,
+                    }}
+                />
+            ) : null}
         </div>
     );
 }

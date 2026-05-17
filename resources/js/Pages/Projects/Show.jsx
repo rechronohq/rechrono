@@ -1,9 +1,9 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { CalendarDays, CheckCircle2, Circle, ListTodo, MoreHorizontal, Plus, UsersRound } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
-import { SelectionCheckbox } from '@/components/ui/checkbox';
+import { Checkbox, SelectionCheckbox } from '@/components/ui/checkbox';
 import { RowContextMenu } from '@/components/RowContextMenu';
 import {
     DropdownMenu,
@@ -28,6 +28,7 @@ import { ProjectActionsDropdown } from '@/projects/ProjectActionsDropdown';
 import { ProjectTaskViewMenu } from '@/projects/ProjectTaskViewMenu';
 import { TaskDialog } from '@/tasks/TaskDialog';
 import { getTaskRowActions } from '@/tasks/taskRowActions';
+import { useProjectTaskMarquee } from './useProjectTaskMarquee';
 
 export default function ProjectsShow({ project }) {
     const { auth, routes } = usePage().props;
@@ -38,10 +39,13 @@ export default function ProjectsShow({ project }) {
     const [taskModalMode, setTaskModalMode] = useState('create');
     const [taskModalTask, setTaskModalTask] = useState(null);
     const [taskPendingDelete, setTaskPendingDelete] = useState(null);
+    const [tasksPendingDelete, setTasksPendingDelete] = useState([]);
     const [taskForm, setTaskForm] = useState(() => defaultTaskForm(project));
     const [taskGroups, setTaskGroups] = useState(project.task_groups ?? []);
     const [selectedTaskIds, setSelectedTaskIds] = useState([]);
-    const [taskContextMenu, setTaskContextMenu] = useState({ anchor: null, open: false, taskId: null });
+    const [taskContextMenu, setTaskContextMenu] = useState({ anchor: null, open: false, taskId: null, mode: 'row' });
+    const taskListRef = useRef(null);
+    const suppressTaskClickRef = useRef(false);
     const taskSummary = summarizeTaskGroups(taskGroups, project.task_summary ?? {});
     const currentUserId = auth?.user?.id ?? null;
     const personGroupCount = useMemo(
@@ -202,37 +206,66 @@ export default function ProjectsShow({ project }) {
         }
     }
 
+    function selectedTaskRecords() {
+        return tasksByIds(taskGroups, selectedTaskIds)
+            .filter((task) => task.kind !== 'group');
+    }
+
+    function selectedDeletableTasks() {
+        return selectedTaskRecords().filter((task) => task.destroy_url);
+    }
+
     function toggleTaskSelection(taskId, checked) {
         setSelectedTaskIds((current) => checked
             ? Array.from(new Set([...current, taskId]))
             : current.filter((id) => id !== taskId));
     }
 
-    function toggleGroupTaskSelection(group, checked) {
-        const groupSelectableIds = selectableTasks([group]).map((task) => task.id);
+    function applyTaskMarqueeSelection(hitIds, modifiers) {
+        const idByKey = new Map(visibleSelectableTaskIds.map((taskId) => [String(taskId), taskId]));
+        const resolvedHitIds = hitIds
+            .map((taskId) => idByKey.get(String(taskId)) ?? null)
+            .filter((taskId) => taskId !== null);
 
         setSelectedTaskIds((current) => {
-            const groupIdSet = new Set(groupSelectableIds);
+            if (modifiers.metaKey || modifiers.ctrlKey) {
+                let nextSelectedIds = [...current];
 
-            if (!checked) {
-                return current.filter((taskId) => !groupIdSet.has(taskId));
+                for (const taskId of resolvedHitIds) {
+                    nextSelectedIds = nextSelectedIds.includes(taskId)
+                        ? nextSelectedIds.filter((selectedTaskId) => selectedTaskId !== taskId)
+                        : [...nextSelectedIds, taskId];
+                }
+
+                return nextSelectedIds;
             }
 
-            return Array.from(new Set([...current, ...groupSelectableIds]));
+            if (modifiers.shiftKey) {
+                return Array.from(new Set([...current, ...resolvedHitIds]));
+            }
+
+            return resolvedHitIds;
         });
     }
 
     function closeTaskContextMenu() {
-        setTaskContextMenu({ anchor: null, open: false, taskId: null });
+        setTaskContextMenu({ anchor: null, open: false, taskId: null, mode: 'row' });
     }
 
     function openTaskContextMenu(task, anchor) {
         setTaskContextMenu({
             anchor,
+            mode: selectedVisibleTaskIds.length > 1 && selectedVisibleTaskIds.includes(task.id) ? 'selection' : 'row',
             open: true,
             taskId: task.id,
         });
     }
+
+    const { handlePointerDownCapture: handleTaskMarqueePointerDownCapture, marqueeRect: taskMarqueeRect } = useProjectTaskMarquee({
+        containerRef: taskListRef,
+        onSelect: applyTaskMarqueeSelection,
+        suppressTaskClickRef,
+    });
 
     function openCreateTaskModal(defaults = {}) {
         setTaskModalMode('create');
@@ -331,6 +364,28 @@ export default function ProjectsShow({ project }) {
         }
     }
 
+    async function deleteTasks(tasks) {
+        const deletableTasks = tasks.filter((task) => task?.destroy_url);
+
+        if (deletableTasks.length === 0 || isSubmitting) {
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            for (const task of deletableTasks) {
+                await request(toAppPath(task.destroy_url), { method: 'DELETE' });
+            }
+
+            setTasksPendingDelete([]);
+            setSelectedTaskIds((current) => current.filter((taskId) => !deletableTasks.some((task) => task.id === taskId)));
+            router.reload({ preserveScroll: true });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
     return (
         <AppPage
             title="Projects"
@@ -420,6 +475,12 @@ export default function ProjectsShow({ project }) {
                                                 <DropdownMenuItem onSelect={handleSelectedTasksCompletion}>
                                                     Mark selected complete
                                                 </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    className="text-red-700 focus:bg-red-50 focus:text-red-700"
+                                                    onSelect={() => setTasksPendingDelete(selectedDeletableTasks())}
+                                                >
+                                                    Delete selected
+                                                </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </>
@@ -429,7 +490,11 @@ export default function ProjectsShow({ project }) {
                     </div>
 
                     {visibleTaskGroups.length > 0 ? (
-                        <div className="projects-detail-assignee-list">
+                        <div
+                            ref={taskListRef}
+                            className="projects-detail-assignee-list"
+                            onPointerDownCapture={handleTaskMarqueePointerDownCapture}
+                        >
                             {visibleTaskGroups.map((group) => (
                                 <AssigneeTaskGroup
                                     key={group.assignee_id ?? 'unassigned'}
@@ -440,13 +505,25 @@ export default function ProjectsShow({ project }) {
                                     onDuplicateTask={duplicateTask}
                                     onEditTask={openEditTaskModal}
                                     onAddChildTask={(task) => openCreateTaskModal({ parent_id: task.id })}
-                                    onGroupSelectionChange={toggleGroupTaskSelection}
                                     onSelectionChange={toggleTaskSelection}
                                     onTaskContextMenu={openTaskContextMenu}
                                     onTaskCompletionChange={handleTaskCompletionChange}
                                     selectedTaskIds={selectedTaskIds}
+                                    suppressTaskClickRef={suppressTaskClickRef}
                                 />
                             ))}
+                            {taskMarqueeRect ? (
+                                <div
+                                    aria-hidden
+                                    className="project-task-marquee-rect"
+                                    style={{
+                                        height: taskMarqueeRect.bottom - taskMarqueeRect.top,
+                                        left: taskMarqueeRect.left,
+                                        top: taskMarqueeRect.top,
+                                        width: taskMarqueeRect.right - taskMarqueeRect.left,
+                                    }}
+                                />
+                            ) : null}
                         </div>
                     ) : (
                         <div className="projects-detail-empty">
@@ -476,15 +553,26 @@ export default function ProjectsShow({ project }) {
                 onConfirm={() => deleteTask(taskPendingDelete)}
                 task={taskPendingDelete}
             />
+            <DeleteTasksDialog
+                disabled={isSubmitting}
+                onClose={() => setTasksPendingDelete([])}
+                onConfirm={() => deleteTasks(tasksPendingDelete)}
+                tasks={tasksPendingDelete}
+            />
             <RowContextMenu
                 anchor={taskContextMenu.anchor}
-                actions={taskActionsForTask(tasksByIds(taskGroups, [taskContextMenu.taskId])[0], {
-                    onAddChild: (task) => openCreateTaskModal({ parent_id: task.id }),
-                    onDelete: setTaskPendingDelete,
-                    onDuplicate: duplicateTask,
-                    onEdit: openEditTaskModal,
-                    onToggleCompletion: handleTaskCompletionChange,
-                })}
+                actions={taskContextMenu.mode === 'selection'
+                    ? selectedTaskSelectionActions(selectedTaskRecords(), {
+                        onDelete: (tasks) => setTasksPendingDelete(tasks.filter((task) => task.destroy_url)),
+                        onMarkComplete: handleSelectedTasksCompletion,
+                    })
+                    : taskActionsForTask(tasksByIds(taskGroups, [taskContextMenu.taskId])[0], {
+                        onAddChild: (task) => openCreateTaskModal({ parent_id: task.id }),
+                        onDelete: setTaskPendingDelete,
+                        onDuplicate: duplicateTask,
+                        onEdit: openEditTaskModal,
+                        onToggleCompletion: handleTaskCompletionChange,
+                    })}
                 open={taskContextMenu.open}
                 onOpenChange={(open) => {
                     if (!open) {
@@ -552,7 +640,7 @@ function projectScheduleDateTime(project) {
     return start || end || undefined;
 }
 
-function AssigneeTaskGroup({ disabled, group, onAddChildTask, onCreateTask, onDeleteTask, onDuplicateTask, onEditTask, onGroupSelectionChange, onSelectionChange, onTaskContextMenu, onTaskCompletionChange, selectedTaskIds }) {
+function AssigneeTaskGroup({ group, onAddChildTask, onCreateTask, onDeleteTask, onDuplicateTask, onEditTask, onSelectionChange, onTaskContextMenu, onTaskCompletionChange, selectedTaskIds, suppressTaskClickRef }) {
     const groupProgress = group.task_count > 0
         ? Math.round(((group.completed_count ?? 0) / group.task_count) * 100)
         : 0;
@@ -560,21 +648,11 @@ function AssigneeTaskGroup({ disabled, group, onAddChildTask, onCreateTask, onDe
     const createDefaults = group.grouping === 'group'
         ? { parent_id: group.parent_id ?? '' }
         : { assignee_user_id: group.assignee_id ?? '' };
-    const groupSelectableTaskIds = selectableTasks([group]).map((task) => task.id);
-    const selectedGroupTaskIds = groupSelectableTaskIds.filter((taskId) => selectedTaskIds.includes(taskId));
-    const allGroupTasksSelected = groupSelectableTaskIds.length > 0 && selectedGroupTaskIds.length === groupSelectableTaskIds.length;
-    const someGroupTasksSelected = selectedGroupTaskIds.length > 0 && !allGroupTasksSelected;
 
     return (
         <article className="projects-detail-assignee">
             <div className="projects-detail-assignee__header">
                 <div className="projects-detail-assignee__identity">
-                    <SelectionCheckbox
-                        aria-label={`Select all tasks for ${group.assignee_name}`}
-                        checked={someGroupTasksSelected ? 'indeterminate' : allGroupTasksSelected}
-                        disabled={disabled || groupSelectableTaskIds.length === 0}
-                        onCheckedChange={(checked) => onGroupSelectionChange(group, Boolean(checked))}
-                    />
                     <div className="projects-detail-avatar" aria-hidden="true">{assigneeInitial(group.assignee_name)}</div>
                     <div>
                         <h3>{group.assignee_name}</h3>
@@ -611,6 +689,7 @@ function AssigneeTaskGroup({ disabled, group, onAddChildTask, onCreateTask, onDe
                             onSelectionChange={onSelectionChange}
                             onTaskContextMenu={onTaskContextMenu}
                             selected={selectedTaskIds.includes(task.id)}
+                            suppressTaskClickRef={suppressTaskClickRef}
                             task={task}
                         />
                     ))
@@ -622,7 +701,7 @@ function AssigneeTaskGroup({ disabled, group, onAddChildTask, onCreateTask, onDe
     );
 }
 
-function TaskRow({ onAddChild, onCompletionChange, onDelete, onDuplicate, onEdit, onSelectionChange, onTaskContextMenu, selected, task }) {
+function TaskRow({ onAddChild, onCompletionChange, onDelete, onDuplicate, onEdit, onSelectionChange, onTaskContextMenu, selected, suppressTaskClickRef, task }) {
     const actions = taskActionsForTask(task, {
         onAddChild,
         onDelete,
@@ -635,6 +714,8 @@ function TaskRow({ onAddChild, onCompletionChange, onDelete, onDuplicate, onEdit
         <div
             className="projects-detail-task"
             data-completed={task.completed}
+            data-project-task-id={task.id}
+            data-selectable={task.update_url && task.kind !== 'group' ? 'true' : 'false'}
             data-state={selected ? 'selected' : undefined}
             onContextMenu={(event) => {
                 event.preventDefault();
@@ -644,17 +725,36 @@ function TaskRow({ onAddChild, onCompletionChange, onDelete, onDuplicate, onEdit
                 });
             }}
         >
-            <div className="projects-detail-task__selection">
+            <div className="projects-detail-task__selection" data-marquee-ignore>
                 <SelectionCheckbox
                     aria-label={`Select ${task.name}`}
                     checked={selected}
+                    className="projects-detail-task__select-checkbox"
                     disabled={!task.update_url || task.kind === 'group'}
                     onCheckedChange={(checked) => onSelectionChange(task.id, checked)}
+                />
+                <Checkbox
+                    aria-label={`${task.completed ? 'Mark incomplete' : 'Mark complete'} ${task.name}`}
+                    checked={task.completed}
+                    disabled={!task.update_url || task.kind === 'group'}
+                    onCheckedChange={(checked) => onCompletionChange(task, checked)}
                 />
             </div>
             <div className="projects-detail-task__main">
                 <h4>
-                    <button type="button" aria-label={`Edit ${task.name}`} onClick={() => onEdit(task)}>
+                    <button
+                        type="button"
+                        aria-label={`Edit ${task.name}`}
+                        onClick={() => {
+                            if (suppressTaskClickRef?.current) {
+                                suppressTaskClickRef.current = false;
+
+                                return;
+                            }
+
+                            onEdit(task);
+                        }}
+                    >
                         {task.name}
                     </button>
                 </h4>
@@ -664,7 +764,7 @@ function TaskRow({ onAddChild, onCompletionChange, onDelete, onDuplicate, onEdit
                 </div>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button type="button" className="projects-detail-task__actions" aria-label={`More actions for ${task.name}`}>
+                        <button type="button" className="projects-detail-task__actions" aria-label={`More actions for ${task.name}`} data-marquee-ignore>
                             <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                         </button>
                     </DropdownMenuTrigger>
@@ -707,6 +807,37 @@ function DeleteTaskDialog({ disabled, onClose, onConfirm, task }) {
                         disabled={disabled}
                     >
                         Delete task
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function DeleteTasksDialog({ disabled, onClose, onConfirm, tasks }) {
+    const count = tasks.length;
+
+    return (
+        <Dialog open={count > 0} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-md" data-testid="project-tasks-delete-dialog">
+                <DialogHeader>
+                    <DialogTitle>Delete selected tasks?</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm leading-6 text-stone-600">
+                    This will delete {count} selected {count === 1 ? 'task' : 'tasks'} from the project. This cannot be undone.
+                </p>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={onClose} disabled={disabled}>
+                        Cancel
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="border-red-200 text-red-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800"
+                        onClick={onConfirm}
+                        disabled={disabled}
+                    >
+                        Delete tasks
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -953,6 +1084,34 @@ function taskActionsForTask(task, handlers) {
         canAddChildren: true,
         canConvertToGroup: false,
     });
+}
+
+function selectedTaskSelectionActions(tasks, handlers) {
+    const count = tasks.length;
+    const hasIncompleteTasks = tasks.some((task) => task.update_url && !task.completed);
+    const deletableTasks = tasks.filter((task) => task.destroy_url);
+
+    if (count === 0) {
+        return [];
+    }
+
+    return [
+        hasIncompleteTasks
+            ? {
+                id: 'mark-selected-complete',
+                label: `Mark ${count} complete`,
+                onSelect: handlers.onMarkComplete,
+            }
+            : null,
+        deletableTasks.length > 0
+            ? {
+                id: 'delete-selected',
+                label: `Delete ${deletableTasks.length}`,
+                tone: 'destructive',
+                onSelect: () => handlers.onDelete(deletableTasks),
+            }
+            : null,
+    ].filter(Boolean);
 }
 
 function taskMatchesFilter(task, filter, currentUserId) {

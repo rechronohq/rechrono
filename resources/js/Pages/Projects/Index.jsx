@@ -8,11 +8,9 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Label } from '@/components/ui/label';
+import { RowContextMenu } from '@/components/RowContextMenu';
 import { Select } from '@/components/ui/select';
 import AppPage from '@/Layouts/AppPage';
-import { HiveImportDialog } from '@/Pages/Timeline/HiveImportDialog';
-import { buildFileUploadFormData, requestErrorMessages, requestFieldErrors } from '@/Pages/Timeline/utils';
 import { request } from '@/lib/request';
 import { toAppPath } from '@/lib/url';
 import { ProjectsTable } from '@/projects/ProjectsTable';
@@ -21,10 +19,8 @@ export default function ProjectsIndex({ projects }) {
     const { props } = usePage();
     const rows = projects.rows ?? [];
     const [selectedIds, setSelectedIds] = useState([]);
-    const [selectedParentId, setSelectedParentId] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [hiveImportOpen, setHiveImportOpen] = useState(false);
-    const [hiveImportState, setHiveImportState] = useState(defaultHiveImportState);
+    const [projectContextMenu, setProjectContextMenu] = useState({ anchor: null, mode: 'row', open: false, projectId: null });
 
     useEffect(() => {
         const rowIds = new Set(rows.map((row) => row.id));
@@ -32,9 +28,7 @@ export default function ProjectsIndex({ projects }) {
         setSelectedIds((current) => current.filter((id) => rowIds.has(id)));
     }, [rows]);
 
-    const bulkParentOptions = (projects.parent_options ?? []).filter((project) => !selectedIds.includes(project.id));
-
-    async function handleBulkAction(action, projectIds, extraPayload = {}) {
+    async function handleBulkAction(action, projectIds) {
         if (projectIds.length === 0 || isSubmitting) {
             return;
         }
@@ -47,12 +41,10 @@ export default function ProjectsIndex({ projects }) {
                 body: JSON.stringify({
                     action,
                     project_ids: projectIds,
-                    ...extraPayload,
                 }),
             });
 
             setSelectedIds((current) => current.filter((id) => !projectIds.includes(id)));
-            setSelectedParentId('');
             router.reload({
                 preserveScroll: true,
             });
@@ -63,12 +55,6 @@ export default function ProjectsIndex({ projects }) {
 
     async function handleRowAction(action, projectId) {
         await handleBulkAction(action, [projectId]);
-    }
-
-    async function handleMoveSelected() {
-        await handleBulkAction('change-parent', selectedIds, {
-            parent_id: selectedParentId || null,
-        });
     }
 
     async function handleProjectAction(action, project) {
@@ -109,101 +95,110 @@ export default function ProjectsIndex({ projects }) {
         }
     }
 
+    function closeProjectContextMenu() {
+        setProjectContextMenu({ anchor: null, mode: 'row', open: false, projectId: null });
+    }
+
+    function openProjectContextMenu(project, anchor) {
+        setProjectContextMenu({
+            anchor,
+            mode: selectedIds.length > 1 && selectedIds.includes(project.id) ? 'selection' : 'row',
+            open: true,
+            projectId: project.id,
+        });
+    }
+
+    function visitProjectUrl(url) {
+        router.visit(toAppPath(url));
+    }
+
+    function projectForContextMenu() {
+        return rows.find((project) => project.id === projectContextMenu.projectId) ?? null;
+    }
+
+    function selectedProjectsForContextMenu() {
+        const selectedIdSet = new Set(selectedIds);
+
+        return rows.filter((project) => selectedIdSet.has(project.id));
+    }
+
+    function projectRowContextActions(project) {
+        if (!project) {
+            return [];
+        }
+
+        const statusAction = project.is_active ? 'archive' : 'unarchive';
+        const isTemplate = Boolean(project.is_template);
+
+        return [
+            !isTemplate ? {
+                id: 'open-timeline',
+                label: 'Open timeline',
+                onSelect: () => visitProjectUrl(project.timeline_url),
+            } : null,
+            {
+                id: 'edit',
+                label: isTemplate ? 'Edit template' : 'Edit project',
+                onSelect: () => visitProjectUrl(project.edit_url),
+            },
+            !isTemplate ? {
+                id: statusAction,
+                label: project.is_active ? 'Archive' : 'Unarchive',
+                onSelect: () => handleProjectAction(statusAction, project),
+            } : null,
+            {
+                id: 'duplicate',
+                label: 'Duplicate',
+                onSelect: () => handleProjectAction('duplicate', project),
+            },
+            !isTemplate ? {
+                id: 'save-as-template',
+                label: 'Save as template',
+                onSelect: () => handleProjectAction('save-as-template', project),
+            } : null,
+            {
+                id: 'delete',
+                label: 'Delete',
+                tone: 'destructive',
+                onSelect: () => handleProjectAction('delete', project),
+            },
+        ].filter(Boolean);
+    }
+
+    function projectSelectionContextActions(selectedProjects) {
+        if (selectedProjects.length === 0) {
+            return [];
+        }
+
+        const activeProjects = selectedProjects.filter((project) => project.is_active);
+        const inactiveProjects = selectedProjects.filter((project) => !project.is_active);
+
+        return [
+            activeProjects.length > 0 ? {
+                id: 'archive-selected',
+                label: `Archive ${activeProjects.length}`,
+                onSelect: () => handleBulkAction('archive', activeProjects.map((project) => project.id)),
+            } : null,
+            inactiveProjects.length > 0 ? {
+                id: 'unarchive-selected',
+                label: `Unarchive ${inactiveProjects.length}`,
+                onSelect: () => handleBulkAction('unarchive', inactiveProjects.map((project) => project.id)),
+            } : null,
+            {
+                id: 'delete-selected',
+                label: `Delete ${selectedProjects.length}`,
+                tone: 'destructive',
+                onSelect: () => handleBulkAction('delete', selectedProjects.map((project) => project.id)),
+            },
+        ].filter(Boolean);
+    }
+
     function handleStatusFilterChange(status) {
         router.get(toAppPath(props.routes?.projects?.index ?? '/projects'), status === 'active' ? {} : { status }, {
             preserveScroll: true,
             preserveState: true,
             replace: true,
         });
-    }
-
-    function openHiveImportDialog() {
-        setHiveImportState(defaultHiveImportState());
-        setHiveImportOpen(true);
-    }
-
-    function closeHiveImportDialog(open) {
-        if (open === false) {
-            setHiveImportState(defaultHiveImportState());
-        }
-
-        setHiveImportOpen(Boolean(open));
-    }
-
-    function setHiveImportFile(file) {
-        setHiveImportState((current) => ({
-            ...current,
-            file: file ?? null,
-            result: null,
-            resultNotice: '',
-            errors: [],
-            fieldErrors: {},
-        }));
-    }
-
-    function applyHiveImportError(error) {
-        const nextFieldErrors = requestFieldErrors(error);
-        const nextErrors = requestErrorMessages(error).filter(
-            (message) => !(nextFieldErrors.file ?? []).includes(message),
-        );
-
-        setHiveImportState((current) => ({
-            ...current,
-            errors: nextErrors,
-            fieldErrors: nextFieldErrors,
-        }));
-    }
-
-    async function submitHiveImportFromDialog() {
-        if (!hiveImportState.file) {
-            setHiveImportState((current) => ({
-                ...current,
-                errors: [],
-                fieldErrors: {
-                    ...current.fieldErrors,
-                    file: ['Choose a Hive CSV file to import.'],
-                },
-            }));
-
-            return;
-        }
-
-        setHiveImportState((current) => ({
-            ...current,
-            result: null,
-            resultNotice: '',
-            errors: [],
-            fieldErrors: {},
-            isSubmitting: true,
-        }));
-
-        try {
-            const result = await request(props.routes?.importsHiveStore ?? toAppPath('/imports/hive'), {
-                method: 'POST',
-                body: buildFileUploadFormData(hiveImportState.file),
-            });
-
-            setHiveImportState((current) => ({
-                ...current,
-                file: null,
-                result,
-                resultNotice: 'Projects refreshed with imported Hive data.',
-                errors: [],
-                fieldErrors: {},
-            }));
-
-            router.reload({
-                preserveScroll: true,
-                preserveState: true,
-            });
-        } catch (error) {
-            applyHiveImportError(error);
-        } finally {
-            setHiveImportState((current) => ({
-                ...current,
-                isSubmitting: false,
-            }));
-        }
     }
 
     return (
@@ -231,62 +226,31 @@ export default function ProjectsIndex({ projects }) {
                                 <div className="projects-index-toolbar__selected-count">
                                     {selectedIds.length} selected
                                 </div>
-                                <div className="flex flex-wrap items-end gap-2">
-                            <div className="min-w-56">
-                                <Label htmlFor="projects-bulk-parent" className="sr-only">Parent for selected projects</Label>
-                                <Select
-                                    id="projects-bulk-parent"
-                                    value={selectedParentId}
-                                    onChange={(event) => setSelectedParentId(event.target.value)}
-                                    aria-label="Parent for selected projects"
-                                    disabled={isSubmitting}
-                                >
-                                    <option value="">No parent</option>
-                                    {bulkParentOptions.map((project) => (
-                                        <option key={project.id} value={project.id}>
-                                            {project.name}
-                                        </option>
-                                    ))}
-                                </Select>
-                            </div>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button type="button" variant="outline" disabled={isSubmitting}>
-                                        Bulk actions
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onSelect={handleMoveSelected}>
-                                        Move selected
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => handleBulkAction('archive', selectedIds)}>
-                                        Archive selected
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => handleBulkAction('unarchive', selectedIds)}>
-                                        Unarchive selected
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        className="text-red-700 focus:bg-red-50 focus:text-red-700"
-                                        onSelect={() => handleBulkAction('delete', selectedIds)}
-                                    >
-                                        Delete selected
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button type="button" variant="outline" disabled={isSubmitting}>
+                                            Bulk actions
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onSelect={() => handleBulkAction('archive', selectedIds)}>
+                                            Archive selected
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => handleBulkAction('unarchive', selectedIds)}>
+                                            Unarchive selected
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="text-red-700 focus:bg-red-50 focus:text-red-700"
+                                            onSelect={() => handleBulkAction('delete', selectedIds)}
+                                        >
+                                            Delete selected
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </>
                         ) : null}
                     </div>
                     <div className="projects-index-actions" data-testid="projects-index-actions">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="px-2 text-stone-600"
-                            onClick={openHiveImportDialog}
-                        >
-                            Import
-                        </Button>
                         <Button type="button" size="sm" asChild>
                             <Link href={toAppPath(props.routes?.projects?.create ?? '/projects/new')}>
                                 New Project
@@ -300,26 +264,21 @@ export default function ProjectsIndex({ projects }) {
                     selectedIds={selectedIds}
                     onSelectionChange={setSelectedIds}
                     onProjectAction={handleProjectAction}
+                    onProjectContextMenu={openProjectContextMenu}
                 />
-                <HiveImportDialog
-                    onClose={closeHiveImportDialog}
-                    onFileChange={setHiveImportFile}
-                    onSubmit={submitHiveImportFromDialog}
-                    open={hiveImportOpen}
-                    state={hiveImportState}
+                <RowContextMenu
+                    anchor={projectContextMenu.anchor}
+                    actions={projectContextMenu.mode === 'selection'
+                        ? projectSelectionContextActions(selectedProjectsForContextMenu())
+                        : projectRowContextActions(projectForContextMenu())}
+                    open={projectContextMenu.open}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            closeProjectContextMenu();
+                        }
+                    }}
                 />
             </div>
         </AppPage>
     );
-}
-
-function defaultHiveImportState() {
-    return {
-        file: null,
-        result: null,
-        resultNotice: '',
-        errors: [],
-        fieldErrors: {},
-        isSubmitting: false,
-    };
 }

@@ -6,7 +6,6 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\Team;
 use App\Support\TimelinePayloadBuilder;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -128,7 +127,6 @@ class ProjectController extends Controller
         $validated = Validator::make($request->all(), [
             'template_project_id' => ['required', 'uuid', 'exists:projects,id'],
             'name' => ['required', 'string', 'max:255'],
-            'start_date' => ['required', 'date'],
             'parent_id' => ['nullable', 'uuid', 'exists:projects,id'],
             'selected_project_ids' => ['nullable', 'array'],
             'selected_project_ids.*' => ['uuid', 'exists:projects,id'],
@@ -144,22 +142,13 @@ class ProjectController extends Controller
         abort_unless($template->is_template, 422, 'Selected project is not a template.');
 
         $parent = $this->validatedParentProject($team, $validated['parent_id'] ?? null);
-        $templateTasks = Task::query()
-            ->where('project_id', $template->id)
-            ->get(['start_date', 'end_date']);
-        $earliestTemplateStart = $templateTasks->min('start_date');
-        $dateShiftDays = $earliestTemplateStart
-            ? CarbonImmutable::parse($validated['start_date'])->diffInDays(CarbonImmutable::parse($earliestTemplateStart), false) * -1
-            : null;
-
-        $project = DB::transaction(function () use ($template, $validated, $parent, $dateShiftDays): Project {
+        $project = DB::transaction(function () use ($template, $validated, $parent): Project {
             return $this->duplicateProjectTree($template, [
                 'name' => $validated['name'],
                 'forced_parent_id' => $parent?->id,
                 'is_template' => false,
                 'clear_assignees' => true,
                 'reset_completion' => true,
-                'date_shift_days' => $dateShiftDays,
                 'preserve_names' => true,
             ]);
         });

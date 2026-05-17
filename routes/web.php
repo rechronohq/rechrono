@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HiveImportController;
+use App\Http\Controllers\ImportsPageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectCreatePageController;
@@ -30,6 +31,7 @@ Route::middleware('auth')->group(function () {
         'team' => $request->user()->team,
         ...$request->query(),
     ]));
+    Route::get('/imports', fn (Request $request) => redirect()->route('imports.index', $request->user()->team));
     Route::get('/projects/new', fn (Request $request) => redirect()->route('projects.create', $request->user()->team));
     Route::get('/projects/{project}', function (Request $request, string $project) {
         $teamProject = $request->user()->team?->projects()->findOrFail($project);
@@ -50,6 +52,7 @@ Route::prefix('{team:slug}')
         Route::get('/planner', TimelinePageController::class)->name('planner');
         Route::get('/tasks', TimelinePageController::class)->name('tasks');
         Route::get('/projects', ProjectsPageController::class)->name('projects.index');
+        Route::get('/imports', ImportsPageController::class)->name('imports.index');
         Route::get('/projects/new', ProjectCreatePageController::class)->name('projects.create');
         Route::get('/projects/{project}', ProjectDetailsPageController::class)->name('projects.show');
         Route::get('/projects/{project}/edit', ProjectEditPageController::class)->name('projects.edit');
