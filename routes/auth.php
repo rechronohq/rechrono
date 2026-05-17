@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\AcceptTeamInvitationController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
@@ -21,6 +22,12 @@ Route::middleware('guest')->group(function () {
         ->name('register');
 
     Route::post('register', [RegisteredTeamController::class, 'store']);
+
+    Route::get('invite/{token}', [AcceptTeamInvitationController::class, 'show'])
+        ->name('team-invitations.show');
+
+    Route::post('invite/{token}', [AcceptTeamInvitationController::class, 'store'])
+        ->name('team-invitations.store');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');

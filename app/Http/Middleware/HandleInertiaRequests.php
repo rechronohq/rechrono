@@ -60,6 +60,7 @@ class HandleInertiaRequests extends Middleware
                 'projectsDuplicate' => $team ? route('projects.duplicate', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
                 'projectsDestroy' => $team ? route('projects.destroy', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
                 'profileEdit' => $team ? route('profile.edit', $team) : route('login'),
+                'teamSettingsEdit' => $team ? route('team-settings.edit', $team) : route('login'),
                 'logout' => route('logout'),
             ],
             'timelineViews' => fn (): array => $request->user()

@@ -35,6 +35,16 @@ class Team extends Model
         return $this->hasMany(User::class)->orderBy('name');
     }
 
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(TeamInvitation::class)->orderBy('email');
+    }
+
+    public function pendingInvitations(): HasMany
+    {
+        return $this->invitations()->whereNull('accepted_at');
+    }
+
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class)->orderBy('name');
@@ -60,9 +70,11 @@ class Team extends Model
             'logout',
             'mcp',
             'password',
+            'invite',
             'profile',
             'register',
             'reset-password',
+            'settings',
             'storage',
             'up',
             'verify-email',

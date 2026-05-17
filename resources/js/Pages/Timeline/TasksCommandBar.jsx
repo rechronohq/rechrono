@@ -87,10 +87,6 @@ export function TasksCommandBar({
                 <PopoverContent align="end" className="z-[260] w-80">
                     <div className="space-y-4">
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Timeline view</div>
-                        </div>
-
-                        <div className="border-t border-stone-200/80 pt-4">
                             <div className="flex items-center justify-between px-1">
                                 <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Projects</span>
                                 <button type="button" className="text-xs font-medium text-stone-500 hover:text-stone-900" onClick={onSelectAllProjects}>

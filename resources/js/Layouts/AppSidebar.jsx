@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ChevronDown, LogOut, MoreHorizontal, UserCircle2 } from 'lucide-react';
+import { ChevronDown, LogOut, MoreHorizontal, Settings, UserCircle2 } from 'lucide-react';
 
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -228,6 +228,15 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
                             >
                                 <UserCircle2 className="h-4 w-4" />
                                 Profile
+                            </button>
+                            <button
+                                type="button"
+                                data-testid="app-shell-team-settings"
+                                className="flex w-full items-center gap-2 rounded-[4px] px-3 py-2 text-sm text-stone-700 transition hover:bg-stone-50 hover:text-stone-950"
+                                onClick={() => router.visit(routes.teamSettingsEdit)}
+                            >
+                                <Settings className="h-4 w-4" />
+                                Team settings
                             </button>
                             <button
                                 type="button"

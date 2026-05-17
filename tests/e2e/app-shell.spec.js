@@ -56,7 +56,11 @@ test('shows the shared app shell structure on tasks', async ({ page }) => {
     await expect(sidebar.getByTestId('app-shell-account-trigger')).toBeVisible();
     await sidebar.getByTestId('app-shell-account-trigger').click();
     await expect(sidebar.getByRole('button', { name: 'Profile' })).toBeVisible();
+    await expect(sidebar.getByRole('button', { name: 'Team settings' })).toBeVisible();
     await expect(sidebar.getByRole('button', { name: 'Log out' })).toBeVisible();
+    await sidebar.getByTestId('app-shell-team-settings').click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page.getByRole('heading', { name: 'Team settings' })).toBeVisible();
     await expect(appContextBar.getByTestId('app-context-bar-context')).toHaveCount(0);
     await expect(sidebarTaskRow(page, 'Scenario review')).toBeVisible();
 });

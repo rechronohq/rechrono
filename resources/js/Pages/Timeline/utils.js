@@ -204,6 +204,27 @@ export function buildDays(rangeStart, rangeEnd, showWeekends = false, dimensions
     };
 }
 
+export function resolveTodayLineLeft(todayDate, days, compressedBreaks, columnWidth) {
+    const visibleDay = days.find((day) => day.date === todayDate);
+
+    if (visibleDay) {
+        return visibleDay.left + columnWidth / 2;
+    }
+
+    const today = parseDateString(todayDate);
+
+    for (const breakpoint of compressedBreaks) {
+        const after = parseDateString(breakpoint.after);
+        const before = parseDateString(breakpoint.before);
+
+        if (today > after && today < before) {
+            return breakpoint.left;
+        }
+    }
+
+    return null;
+}
+
 export function projectItems(items, projectId, parentId) {
     return [...items]
         .filter((item) => item.project_id === projectId && (item.parent_id ?? null) === parentId)

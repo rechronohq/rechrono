@@ -7,7 +7,7 @@ import {
     DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/utils';
-import { formatDate } from './utils';
+import { formatDate, resolveTodayLineLeft } from './utils';
 
 const USER_ASSIGNEE_COLORS = [
     { backgroundColor: '#dbeafe', borderColor: '#bfdbfe', color: '#1d4ed8' },
@@ -42,7 +42,7 @@ export function TimelineCanvas({
     const hoveredBar = bars.find((bar) => bar.item.id === hoveredTaskId) ?? null;
     const weekendBands = buildWeekendBands(days, columnWidth);
     const todayDate = formatDate(new Date());
-    const today = days.find((day) => day.date === todayDate) ?? null;
+    const todayLineLeft = resolveTodayLineLeft(todayDate, days, compressedBreaks, columnWidth);
     const [scrollLeft, setScrollLeft] = useState(0);
 
     return (
@@ -102,12 +102,12 @@ export function TimelineCanvas({
                         />
                     )}
                     <div className="timeline-grid">
-                        {today && (
+                        {todayLineLeft !== null && (
                             <div
-                                aria-label={`Today: ${today.date}`}
+                                aria-label={`Today: ${todayDate}`}
                                 className="timeline-today-line"
-                                style={{ left: `${today.left + columnWidth / 2}px`, height: `${rows.length * rowHeight}px` }}
-                            />
+                                style={{ left: `${todayLineLeft}px`, height: `${rows.length * rowHeight}px` }}
+                            ></div>
                         )}
                         {weekendBands.map((band) => (
                             <div
