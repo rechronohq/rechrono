@@ -2,6 +2,30 @@ import { expect, test } from '@playwright/test';
 
 import { login } from './helpers/app';
 
+async function openProjectTaskViewMenu(page) {
+    await page.getByTestId('project-task-view-menu-trigger').click();
+}
+
+async function setProjectTaskGrouping(page, grouping) {
+    await openProjectTaskViewMenu(page);
+    await page.getByRole('group', { name: 'Group tasks by' }).getByRole('button', {
+        name: grouping === 'group' ? 'Group' : 'Person',
+        exact: true,
+    }).click();
+}
+
+async function setProjectTaskFilter(page, filter) {
+    const labels = {
+        all: 'All',
+        completed: 'Completed',
+        mine: 'Mine',
+        open: 'Open',
+    };
+
+    await openProjectTaskViewMenu(page);
+    await page.getByRole('menu', { name: 'Task filter' }).getByRole('menuitemradio', { name: new RegExp(`^${labels[filter]}\\b`) }).click();
+}
+
 test('projects renders through the shared app scaffold with a sortable data table', async ({ page }) => {
     await login(page);
 
@@ -224,21 +248,10 @@ test('project detail shows related tasks grouped by person', async ({ page }) =>
     await expect(page.getByRole('heading', { name: 'Build planner' })).toBeVisible();
 
     const unassignedGroup = page.locator('.projects-detail-assignee').filter({ has: page.getByRole('heading', { name: 'Unassigned' }) });
-    await unassignedGroup.getByRole('button', { name: 'Collapse Unassigned' }).click();
-    await expect(unassignedGroup.getByText('7 tasks hidden')).toBeVisible();
-    await expect(unassignedGroup.getByRole('heading', { name: 'Kickoff and scope' })).toHaveCount(0);
-
-    await page.reload();
-    const reloadedUnassignedGroup = page.locator('.projects-detail-assignee').filter({ has: page.getByRole('heading', { name: 'Unassigned' }) });
-    await expect(reloadedUnassignedGroup.getByText('7 tasks hidden')).toBeVisible();
-
-    await reloadedUnassignedGroup.getByRole('button', { name: 'Expand Unassigned' }).click();
-    await expect(reloadedUnassignedGroup.getByRole('heading', { name: 'Kickoff and scope' })).toBeVisible();
-
-    await page.getByRole('button', { name: 'Collapse all' }).click();
-    await expect(reloadedUnassignedGroup.getByText('7 tasks hidden')).toBeVisible();
-    await page.getByRole('button', { name: 'Expand all' }).click();
-    await expect(reloadedUnassignedGroup.getByRole('heading', { name: 'Kickoff and scope' })).toBeVisible();
+    await unassignedGroup.getByRole('checkbox', { name: 'Select all tasks for Unassigned' }).click();
+    await expect(page.getByText('7 selected')).toBeVisible();
+    await unassignedGroup.getByRole('checkbox', { name: 'Select all tasks for Unassigned' }).click();
+    await expect(page.getByText('7 selected')).toHaveCount(0);
 });
 
 test('project detail hides timeline groups as tasks and can group tasks by them', async ({ page }) => {
@@ -268,22 +281,22 @@ test('project detail hides timeline groups as tasks and can group tasks by them'
     await expect(page.getByRole('heading', { name: 'Edit Production' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Edit Shot cleanup' })).toBeVisible();
 
-    await page.getByRole('group', { name: 'Group tasks by' }).getByRole('button', { name: 'Group', exact: true }).click();
+    await setProjectTaskGrouping(page, 'group');
 
     await expect(page.getByRole('heading', { name: 'Tasks by group' })).toBeVisible();
 
     const productionGroup = page.locator('.projects-detail-assignee').filter({ has: page.getByRole('heading', { name: 'Production' }) });
     await expect(productionGroup.getByRole('heading', { name: 'Edit Shot cleanup' })).toBeVisible();
 
-    await page.getByLabel('Task filter').selectOption('completed');
+    await setProjectTaskFilter(page, 'completed');
     await expect(productionGroup.getByText('1 open · 0 done · 1 total')).toBeVisible();
     await expect(productionGroup.getByText('No completed tasks for this group.')).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Tasks by group' })).toBeVisible();
-    await expect(page.getByLabel('Task filter')).toHaveValue('completed');
+    await expect(page.getByTestId('project-task-view-menu-trigger')).toContainText('Completed');
 
-    await page.getByLabel('Task filter').selectOption('all');
+    await setProjectTaskFilter(page, 'all');
     const productionGroupAfterReload = page.locator('.projects-detail-assignee').filter({ has: page.getByRole('heading', { name: 'Production' }) });
     await productionGroupAfterReload.getByRole('button', { name: 'New task' }).click();
     await expect(page.getByLabel('Parent task or group')).toHaveValue(/.+/);
@@ -296,15 +309,15 @@ test('project detail can filter related tasks by completion state', async ({ pag
     await page.goto('/projects');
     await page.getByRole('row', { name: /Default Planning Board/ }).getByRole('link', { name: 'Default Planning Board' }).click();
 
-    await page.getByLabel('Task filter').selectOption('completed');
+    await setProjectTaskFilter(page, 'completed');
     await expect(page.getByRole('heading', { name: 'Kickoff and scope' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Scenario review' })).toHaveCount(0);
 
-    await page.getByLabel('Task filter').selectOption('open');
+    await setProjectTaskFilter(page, 'open');
     await expect(page.getByRole('heading', { name: 'Scenario review' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Kickoff and scope' })).toHaveCount(0);
 
-    await page.getByLabel('Task filter').selectOption('all');
+    await setProjectTaskFilter(page, 'all');
     await expect(page.getByRole('heading', { name: 'Kickoff and scope' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Scenario review' })).toBeVisible();
 });

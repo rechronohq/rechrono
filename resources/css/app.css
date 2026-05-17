@@ -639,6 +639,7 @@
     }
 
     .projects-detail-task-toggle button {
+        flex: 1 1 0;
         border: 0;
         border-right: 1px solid #e7e5e4;
         background: transparent;
@@ -673,11 +674,7 @@
         color: #78716c;
     }
 
-    .projects-detail-task-selection {
-        display: inline-flex;
-        min-height: 2.5rem;
-        align-items: center;
-        gap: 0.45rem;
+    .projects-detail-section__selected-count {
         font-size: 0.82rem;
         color: #78716c;
     }
@@ -708,24 +705,6 @@
         min-width: 0;
         align-items: center;
         gap: 0.65rem;
-    }
-
-    .projects-detail-assignee__collapse {
-        display: inline-flex;
-        width: 1.6rem;
-        height: 1.6rem;
-        flex: 0 0 auto;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        color: #a8a29e;
-        transition: background 150ms ease, color 150ms ease;
-    }
-
-    .projects-detail-assignee__collapse:hover,
-    .projects-detail-assignee__collapse:focus-visible {
-        background: #f5f5f4;
-        color: #292524;
     }
 
     .projects-detail-assignee__identity h3 {
@@ -859,13 +838,6 @@
         border-top: 1px solid rgba(231, 229, 228, 0.75);
         padding: 0.95rem 1rem;
         font-size: 0.84rem;
-        color: #78716c;
-    }
-
-    .projects-detail-task-collapsed {
-        border-top: 1px solid rgba(231, 229, 228, 0.75);
-        padding: 0.8rem 1rem;
-        font-size: 0.8rem;
         color: #78716c;
     }
 

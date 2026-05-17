@@ -1,5 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Circle, FolderKanban, ListTodo, MoreHorizontal, Plus, UsersRound } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Circle, FolderKanban, ListTodo, MoreHorizontal, Plus, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -18,7 +18,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Select } from '@/components/ui/select';
 import AppBreadcrumb from '@/components/AppBreadcrumb';
 import AppPage from '@/Layouts/AppPage';
 import { formatProjectDateRange } from '@/lib/formatters';
@@ -26,6 +25,7 @@ import { request } from '@/lib/request';
 import { toAppPath } from '@/lib/url';
 import { cn } from '@/lib/utils';
 import { ProjectActionsDropdown } from '@/projects/ProjectActionsDropdown';
+import { ProjectTaskViewMenu } from '@/projects/ProjectTaskViewMenu';
 import { TaskDialog } from '@/tasks/TaskDialog';
 import { getTaskRowActions } from '@/tasks/taskRowActions';
 
@@ -40,7 +40,6 @@ export default function ProjectsShow({ project }) {
     const [taskPendingDelete, setTaskPendingDelete] = useState(null);
     const [taskForm, setTaskForm] = useState(() => defaultTaskForm(project));
     const [taskGroups, setTaskGroups] = useState(project.task_groups ?? []);
-    const [collapsedTaskSections, setCollapsedTaskSections] = useState(() => savedProjectTaskView(project.id).collapsedTaskSections);
     const [selectedTaskIds, setSelectedTaskIds] = useState([]);
     const [taskContextMenu, setTaskContextMenu] = useState({ anchor: null, open: false, taskId: null });
     const taskSummary = summarizeTaskGroups(taskGroups, project.task_summary ?? {});
@@ -71,8 +70,6 @@ export default function ProjectsShow({ project }) {
         () => selectedTaskIds.filter((taskId) => visibleSelectableTaskIdSet.has(taskId)),
         [selectedTaskIds, visibleSelectableTaskIdSet],
     );
-    const allVisibleTasksSelected = visibleSelectableTaskIds.length > 0 && selectedVisibleTaskIds.length === visibleSelectableTaskIds.length;
-    const someVisibleTasksSelected = selectedVisibleTaskIds.length > 0 && !allVisibleTasksSelected;
     const completionPercent = taskSummary.total > 0
         ? Math.round(((taskSummary.completed ?? 0) / taskSummary.total) * 100)
         : 0;
@@ -99,11 +96,10 @@ export default function ProjectsShow({ project }) {
         }
 
         window.localStorage.setItem(projectTaskViewKey(project.id), JSON.stringify({
-            collapsedTaskSections,
             filter: taskFilter,
             grouping: taskGrouping,
         }));
-    }, [collapsedTaskSections, project.id, taskFilter, taskGrouping]);
+    }, [project.id, taskFilter, taskGrouping]);
 
     async function handleProjectAction(action) {
         if (isSubmitting) {
@@ -212,15 +208,17 @@ export default function ProjectsShow({ project }) {
             : current.filter((id) => id !== taskId));
     }
 
-    function toggleVisibleTaskSelection(checked) {
+    function toggleGroupTaskSelection(group, checked) {
+        const groupSelectableIds = selectableTasks([group]).map((task) => task.id);
+
         setSelectedTaskIds((current) => {
-            const visibleIds = new Set(visibleSelectableTaskIds);
+            const groupIdSet = new Set(groupSelectableIds);
 
             if (!checked) {
-                return current.filter((taskId) => !visibleIds.has(taskId));
+                return current.filter((taskId) => !groupIdSet.has(taskId));
             }
 
-            return Array.from(new Set([...current, ...visibleSelectableTaskIds]));
+            return Array.from(new Set([...current, ...groupSelectableIds]));
         });
     }
 
@@ -333,32 +331,6 @@ export default function ProjectsShow({ project }) {
         }
     }
 
-    function toggleTaskSection(sectionKey) {
-        setCollapsedTaskSections((current) => ({
-            ...current,
-            [sectionKey]: !current[sectionKey],
-        }));
-    }
-
-    function collapseVisibleTaskSections() {
-        setCollapsedTaskSections((current) => ({
-            ...current,
-            ...Object.fromEntries(visibleTaskGroups.map((group) => [taskSectionKey(taskGrouping, group), true])),
-        }));
-    }
-
-    function expandVisibleTaskSections() {
-        setCollapsedTaskSections((current) => {
-            const next = { ...current };
-
-            visibleTaskGroups.forEach((group) => {
-                delete next[taskSectionKey(taskGrouping, group)];
-            });
-
-            return next;
-        });
-    }
-
     return (
         <AppPage
             title="Projects"
@@ -428,67 +400,32 @@ export default function ProjectsShow({ project }) {
                             </p>
                         </div>
                         <div className="projects-detail-section__actions">
-                            {visibleSelectableTaskIds.length > 0 ? (
-                                <div className="projects-detail-task-selection">
-                                    <SelectionCheckbox
-                                        checked={someVisibleTasksSelected ? 'indeterminate' : allVisibleTasksSelected}
-                                        onCheckedChange={(checked) => toggleVisibleTaskSelection(Boolean(checked))}
-                                        aria-label="Select all visible tasks"
-                                        disabled={isSubmitting}
-                                    />
-                                    {selectedVisibleTaskIds.length > 0 ? (
-                                        <span>{selectedVisibleTaskIds.length} selected</span>
-                                    ) : null}
-                                </div>
-                            ) : null}
-                            <div className="projects-detail-task-toggle" role="group" aria-label="Group tasks by">
-                                <button
-                                    type="button"
-                                    aria-pressed={taskGrouping === 'person'}
-                                    onClick={() => setTaskGrouping('person')}
-                                >
-                                    Person
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-pressed={taskGrouping === 'group'}
-                                    onClick={() => setTaskGrouping('group')}
-                                >
-                                    Group
-                                </button>
-                            </div>
-                            <Select
-                                aria-label="Task filter"
-                                className="h-10 w-full sm:w-32"
-                                value={taskFilter}
-                                onChange={(event) => setTaskFilter(event.target.value)}
-                            >
-                                {taskFilterOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label} ({option.count})
-                                    </option>
-                                ))}
-                            </Select>
+                            <ProjectTaskViewMenu
+                                filterOptions={taskFilterOptions}
+                                grouping={taskGrouping}
+                                onFilterChange={setTaskFilter}
+                                onGroupingChange={setTaskGrouping}
+                                taskFilter={taskFilter}
+                            />
                             <div className="projects-detail-section__bulk">
-                                <Button type="button" variant="ghost" size="sm" onClick={expandVisibleTaskSections}>
-                                    Expand all
-                                </Button>
-                                <Button type="button" variant="ghost" size="sm" onClick={collapseVisibleTaskSections}>
-                                    Collapse all
-                                </Button>
                                 {selectedVisibleTaskIds.length > 0 ? (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button type="button" variant="outline" size="sm" disabled={isSubmitting}>
-                                                Bulk actions
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onSelect={handleSelectedTasksCompletion}>
-                                                Mark selected complete
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <>
+                                        <span className="projects-detail-section__selected-count">
+                                            {selectedVisibleTaskIds.length} selected
+                                        </span>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button type="button" variant="outline" size="sm" disabled={isSubmitting}>
+                                                    Bulk actions
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={handleSelectedTasksCompletion}>
+                                                    Mark selected complete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </>
                                 ) : null}
                             </div>
                         </div>
@@ -500,15 +437,15 @@ export default function ProjectsShow({ project }) {
                                 <AssigneeTaskGroup
                                     key={group.assignee_id ?? 'unassigned'}
                                     group={group}
-                                    isCollapsed={Boolean(collapsedTaskSections[taskSectionKey(taskGrouping, group)])}
+                                    disabled={isSubmitting}
                                     onCreateTask={(defaults) => openCreateTaskModal(defaults)}
                                     onDeleteTask={setTaskPendingDelete}
                                     onDuplicateTask={duplicateTask}
                                     onEditTask={openEditTaskModal}
                                     onAddChildTask={(task) => openCreateTaskModal({ parent_id: task.id })}
+                                    onGroupSelectionChange={toggleGroupTaskSelection}
                                     onSelectionChange={toggleTaskSelection}
                                     onTaskContextMenu={openTaskContextMenu}
-                                    onToggleCollapse={() => toggleTaskSection(taskSectionKey(taskGrouping, group))}
                                     onTaskCompletionChange={handleTaskCompletionChange}
                                     selectedTaskIds={selectedTaskIds}
                                 />
@@ -618,7 +555,7 @@ function projectScheduleDateTime(project) {
     return start || end || undefined;
 }
 
-function AssigneeTaskGroup({ group, isCollapsed, onAddChildTask, onCreateTask, onDeleteTask, onDuplicateTask, onEditTask, onSelectionChange, onTaskContextMenu, onToggleCollapse, onTaskCompletionChange, selectedTaskIds }) {
+function AssigneeTaskGroup({ disabled, group, onAddChildTask, onCreateTask, onDeleteTask, onDuplicateTask, onEditTask, onGroupSelectionChange, onSelectionChange, onTaskContextMenu, onTaskCompletionChange, selectedTaskIds }) {
     const groupProgress = group.task_count > 0
         ? Math.round(((group.completed_count ?? 0) / group.task_count) * 100)
         : 0;
@@ -626,24 +563,21 @@ function AssigneeTaskGroup({ group, isCollapsed, onAddChildTask, onCreateTask, o
     const createDefaults = group.grouping === 'group'
         ? { parent_id: group.parent_id ?? '' }
         : { assignee_user_id: group.assignee_id ?? '' };
+    const groupSelectableTaskIds = selectableTasks([group]).map((task) => task.id);
+    const selectedGroupTaskIds = groupSelectableTaskIds.filter((taskId) => selectedTaskIds.includes(taskId));
+    const allGroupTasksSelected = groupSelectableTaskIds.length > 0 && selectedGroupTaskIds.length === groupSelectableTaskIds.length;
+    const someGroupTasksSelected = selectedGroupTaskIds.length > 0 && !allGroupTasksSelected;
 
     return (
         <article className="projects-detail-assignee">
             <div className="projects-detail-assignee__header">
                 <div className="projects-detail-assignee__identity">
-                    <button
-                        type="button"
-                        className="projects-detail-assignee__collapse"
-                        aria-expanded={!isCollapsed}
-                        aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${group.assignee_name}`}
-                        onClick={onToggleCollapse}
-                    >
-                        {isCollapsed ? (
-                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                        ) : (
-                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                        )}
-                    </button>
+                    <SelectionCheckbox
+                        aria-label={`Select all tasks for ${group.assignee_name}`}
+                        checked={someGroupTasksSelected ? 'indeterminate' : allGroupTasksSelected}
+                        disabled={disabled || groupSelectableTaskIds.length === 0}
+                        onCheckedChange={(checked) => onGroupSelectionChange(group, Boolean(checked))}
+                    />
                     <div className="projects-detail-avatar" aria-hidden="true">{assigneeInitial(group.assignee_name)}</div>
                     <div>
                         <h3>{group.assignee_name}</h3>
@@ -667,32 +601,26 @@ function AssigneeTaskGroup({ group, isCollapsed, onAddChildTask, onCreateTask, o
                 </div>
             </div>
 
-            {isCollapsed ? (
-                <div className="projects-detail-task-collapsed">
-                    {collapsedTaskSummary(group)}
-                </div>
-            ) : (
-                <div className="projects-detail-task-list">
-                    {group.tasks.length > 0 ? (
-                        group.tasks.map((task) => (
-                            <TaskRow
-                                key={task.id}
-                                onCompletionChange={onTaskCompletionChange}
-                                onDelete={onDeleteTask}
-                                onDuplicate={onDuplicateTask}
-                                onEdit={onEditTask}
-                                onAddChild={onAddChildTask}
-                                onSelectionChange={onSelectionChange}
-                                onTaskContextMenu={onTaskContextMenu}
-                                selected={selectedTaskIds.includes(task.id)}
-                                task={task}
-                            />
-                        ))
-                    ) : (
-                        <div className="projects-detail-task-empty">{group.empty_message}</div>
-                    )}
-                </div>
-            )}
+            <div className="projects-detail-task-list">
+                {group.tasks.length > 0 ? (
+                    group.tasks.map((task) => (
+                        <TaskRow
+                            key={task.id}
+                            onCompletionChange={onTaskCompletionChange}
+                            onDelete={onDeleteTask}
+                            onDuplicate={onDuplicateTask}
+                            onEdit={onEditTask}
+                            onAddChild={onAddChildTask}
+                            onSelectionChange={onSelectionChange}
+                            onTaskContextMenu={onTaskContextMenu}
+                            selected={selectedTaskIds.includes(task.id)}
+                            task={task}
+                        />
+                    ))
+                ) : (
+                    <div className="projects-detail-task-empty">{group.empty_message}</div>
+                )}
+            </div>
         </article>
     );
 }
@@ -808,25 +736,12 @@ function assigneeInitial(name) {
     return (name?.trim()?.[0] ?? 'U').toUpperCase();
 }
 
-function taskSectionKey(grouping, group) {
-    return `${grouping}:${group.assignee_id ?? 'unassigned'}`;
-}
-
-function collapsedTaskSummary(group) {
-    if (group.tasks.length === 0) {
-        return group.empty_message;
-    }
-
-    return `${group.tasks.length} ${group.tasks.length === 1 ? 'task' : 'tasks'} hidden`;
-}
-
 function projectTaskViewKey(projectId) {
     return `rechrono.projectTaskView.${projectId}`;
 }
 
 function savedProjectTaskView(projectId) {
     const fallback = {
-        collapsedTaskSections: {},
         filter: 'all',
         grouping: 'person',
     };
@@ -839,24 +754,12 @@ function savedProjectTaskView(projectId) {
         const saved = JSON.parse(window.localStorage.getItem(projectTaskViewKey(projectId)) ?? '{}');
 
         return {
-            collapsedTaskSections: validCollapsedTaskSections(saved.collapsedTaskSections),
             filter: ['all', 'open', 'completed', 'mine'].includes(saved.filter) ? saved.filter : fallback.filter,
             grouping: ['person', 'group'].includes(saved.grouping) ? saved.grouping : fallback.grouping,
         };
     } catch (error) {
         return fallback;
     }
-}
-
-function validCollapsedTaskSections(value) {
-    if (!value || Array.isArray(value) || typeof value !== 'object') {
-        return {};
-    }
-
-    return Object.fromEntries(
-        Object.entries(value)
-            .filter(([key, collapsed]) => typeof key === 'string' && typeof collapsed === 'boolean'),
-    );
 }
 
 function formatTaskDate(value) {
