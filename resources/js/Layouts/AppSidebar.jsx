@@ -220,7 +220,10 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
                     </button>
 
                     {menuOpen ? (
-                        <div className="absolute bottom-[calc(100%+0.5rem)] right-0 z-[220] min-w-[220px] rounded-[6px] border border-stone-200 bg-white p-1.5 shadow-xl shadow-stone-200/70">
+                        <div
+                            data-testid="app-shell-account-menu"
+                            className="absolute bottom-[calc(100%+0.5rem)] left-[-0.75rem] right-[-0.75rem] z-[220] rounded-[6px] border border-stone-200 bg-white p-1.5 shadow-xl shadow-stone-200/70"
+                        >
                             <button
                                 type="button"
                                 className="flex w-full items-center gap-2 rounded-[4px] px-3 py-2 text-sm text-stone-700 transition hover:bg-stone-50 hover:text-stone-950"

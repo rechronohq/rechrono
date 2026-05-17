@@ -141,11 +141,6 @@ export default function ProjectsIndex({ projects }) {
                 label: isTemplate ? 'Edit template' : 'Edit project',
                 onSelect: () => visitProjectUrl(project.edit_url),
             },
-            !isTemplate ? {
-                id: statusAction,
-                label: project.is_active ? 'Archive' : 'Unarchive',
-                onSelect: () => handleProjectAction(statusAction, project),
-            } : null,
             {
                 id: 'duplicate',
                 label: 'Duplicate',
@@ -155,6 +150,11 @@ export default function ProjectsIndex({ projects }) {
                 id: 'save-as-template',
                 label: 'Save as template',
                 onSelect: () => handleProjectAction('save-as-template', project),
+            } : null,
+            !isTemplate ? {
+                id: statusAction,
+                label: project.is_active ? 'Archive' : 'Unarchive',
+                onSelect: () => handleProjectAction(statusAction, project),
             } : null,
             {
                 id: 'delete',

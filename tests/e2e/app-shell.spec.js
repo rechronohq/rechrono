@@ -55,14 +55,17 @@ test('shows the shared app shell structure on tasks', async ({ page }) => {
     await expect(accountBlock).toBeVisible();
     await expect(sidebar.getByTestId('app-shell-account-trigger')).toBeVisible();
     await sidebar.getByTestId('app-shell-account-trigger').click();
+    const accountMenuBox = await sidebar.getByTestId('app-shell-account-menu').boundingBox();
+    expect(accountMenuBox).not.toBeNull();
+    expect(Math.abs(accountMenuBox.width - sidebarBox.width)).toBeLessThanOrEqual(1);
     await expect(sidebar.getByRole('button', { name: 'Profile' })).toBeVisible();
     await expect(sidebar.getByRole('button', { name: 'Team settings' })).toBeVisible();
     await expect(sidebar.getByRole('button', { name: 'Log out' })).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Scenario review')).toBeVisible();
     await sidebar.getByTestId('app-shell-team-settings').click();
     await expect(page).toHaveURL(/\/settings$/);
-    await expect(page.getByRole('heading', { name: 'Team settings' })).toBeVisible();
+    await expect(page.getByTestId('app-shell-body').getByRole('heading', { name: 'Team settings' })).toBeVisible();
     await expect(appContextBar.getByTestId('app-context-bar-context')).toHaveCount(0);
-    await expect(sidebarTaskRow(page, 'Scenario review')).toBeVisible();
 });
 
 test('app rail navigates between timeline and projects', async ({ page }) => {

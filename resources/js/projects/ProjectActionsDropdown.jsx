@@ -52,17 +52,17 @@ export function ProjectActionsDropdown({ align = 'end', className, disabled = fa
                 <DropdownMenuItem onSelect={() => visit(project.edit_url)}>
                     {isTemplate ? 'Edit template' : 'Edit project'}
                 </DropdownMenuItem>
-                {!isTemplate ? (
-                    <DropdownMenuItem onSelect={() => selectAction(statusAction)}>
-                        {project.is_active ? 'Archive' : 'Unarchive'}
-                    </DropdownMenuItem>
-                ) : null}
                 <DropdownMenuItem onSelect={() => selectAction('duplicate')}>
                     Duplicate
                 </DropdownMenuItem>
                 {!isTemplate ? (
                     <DropdownMenuItem onSelect={() => selectAction('save-as-template')}>
                         Save as template
+                    </DropdownMenuItem>
+                ) : null}
+                {!isTemplate ? (
+                    <DropdownMenuItem onSelect={() => selectAction(statusAction)}>
+                        {project.is_active ? 'Archive' : 'Unarchive'}
                     </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem

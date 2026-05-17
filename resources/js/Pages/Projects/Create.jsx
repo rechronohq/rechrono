@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
+import AppBreadcrumb from '@/components/AppBreadcrumb';
 import { ProjectsFormPage } from '@/projects/ProjectsFormPage';
 import { ProjectsForm } from '@/projects/ProjectsForm';
 import { request } from '@/lib/request';
@@ -49,8 +50,17 @@ export default function ProjectsCreate({ projects, templateProjects = [] }) {
         }
     }
 
+    const context = (
+        <AppBreadcrumb
+            items={[
+                { label: 'All projects', href: toAppPath(routes.projects?.index ?? '/projects') },
+                { label: 'New project' },
+            ]}
+        />
+    );
+
     return (
-        <ProjectsFormPage title="New Project">
+        <ProjectsFormPage title="New Project" context={context}>
             <ProjectsForm
                 value={form}
                 projects={projects ?? []}

@@ -64,6 +64,8 @@ test('projects can create a new project from the projects app', async ({ page })
 
     await expect(page).toHaveURL(/\/projects\/new$/);
     await expect(page.getByTestId('app-context-bar-title')).toHaveText('New Project');
+    await expect(page.getByTestId('app-context-breadcrumb')).toContainText('All projects');
+    await expect(page.getByTestId('app-context-breadcrumb')).toContainText('New project');
     await page.getByLabel('Name').fill('Projects App Launch');
     await page.getByLabel('Description').fill('Created from the projects directory.');
     await page.getByRole('button', { name: 'Create project' }).click();
@@ -128,9 +130,9 @@ test('projects table exposes timeline-style project actions from the row menu', 
     await expect(page.getByRole('menuitem')).toHaveText([
         'Open timeline',
         'Edit project',
-        'Archive',
         'Duplicate',
         'Save as template',
+        'Archive',
         'Delete',
     ]);
 
@@ -301,9 +303,9 @@ test('project detail exposes project actions from the page menu', async ({ page 
     await expect(page.getByRole('menuitem')).toHaveText([
         'Open timeline',
         'Edit project',
-        'Archive',
         'Duplicate',
         'Save as template',
+        'Archive',
         'Delete',
     ]);
 });
