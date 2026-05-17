@@ -20,6 +20,13 @@ export function selectedSidebarRow(page, name) {
     return page.locator('aside .timeline-tree-row[data-selected="true"]').filter({ hasText: name }).first();
 }
 
+export async function marqueeSelect(page, from, to) {
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 8 });
+    await page.mouse.up();
+}
+
 export async function modifierSelect(locator, modifier) {
     await locator.evaluate((element, key) => {
         const eventInit = {

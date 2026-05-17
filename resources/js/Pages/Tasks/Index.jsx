@@ -84,6 +84,7 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                             onDuplicateTask={board.duplicateTask}
                             onMarkSelectionComplete={() => board.markSelectedSidebarItems(true)}
                             onMarkSelectionIncomplete={() => board.markSelectedSidebarItems(false)}
+                            onMarqueeSelect={board.applySidebarMarqueeSelection}
                             onOpenProjectModal={board.openProjectModal}
                             onReorderTasks={board.reorderTaskSet}
                             onRowClick={board.handleSidebarItemClick}

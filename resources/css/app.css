@@ -24,6 +24,14 @@
     :root {
         color-scheme: light;
     }
+
+    button,
+    a,
+    [role='button'],
+    summary,
+    label {
+        cursor: default;
+    }
 }
 
 @layer components {
@@ -1144,6 +1152,19 @@
         box-shadow: inset 2px 0 0 rgba(41, 37, 36, 0.45);
     }
 
+    .timeline-row-drag-handle {
+        touch-action: none;
+    }
+
+    .timeline-marquee-rect {
+        position: fixed;
+        z-index: 60;
+        pointer-events: none;
+        border: 1px solid rgba(41, 37, 36, 0.35);
+        background: rgba(214, 211, 209, 0.22);
+        border-radius: 2px;
+    }
+
     .timeline-tree-row-hovered {
         background: rgba(219, 234, 254, 0.62);
         box-shadow: inset 2px 0 0 rgba(37, 99, 235, 0.72);
@@ -1431,7 +1452,6 @@
         border-radius: 6px;
         border: 1px solid rgba(214, 211, 209, 0.9);
         box-shadow: none;
-        cursor: grab;
         user-select: none;
         touch-action: none;
     }
@@ -1439,10 +1459,6 @@
     .timeline-bar-hovered {
         border-color: rgba(59, 130, 246, 0.28);
         box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12);
-    }
-
-    .timeline-bar:active {
-        cursor: grabbing;
     }
 
     .timeline-bar-parent {
@@ -1455,10 +1471,6 @@
         border-color: rgba(148, 163, 184, 0.48);
         color: #0f172a;
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.36);
-    }
-
-    .timeline-bar-group:active {
-        cursor: grabbing;
     }
 
     .timeline-bar-leaf {

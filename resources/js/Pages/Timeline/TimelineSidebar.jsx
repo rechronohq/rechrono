@@ -1,15 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, GripVertical, MoreHorizontal } from 'lucide-react';
 
 import { Checkbox } from '../../components/ui/checkbox';
 import { cn } from '../../lib/utils';
 import { SidebarContextMenu } from './SidebarContextMenu';
 import { getSidebarRowActions, getSidebarSelectionActions, splitSidebarRowActions } from './sidebarRowActions';
+import { useSidebarMarquee } from './useSidebarMarquee';
 
 const PROJECT_INDENT = 24;
 const TASK_INDENT = 20;
+const TASK_ROW_BASE_PADDING = 10;
 
 export function TimelineSidebar({
     collapsedGroupIds,
@@ -25,6 +27,7 @@ export function TimelineSidebar({
     onDraftChange,
     onMarkSelectionComplete,
     onMarkSelectionIncomplete,
+    onMarqueeSelect = () => {},
     onOpenProjectModal,
     onReorderTasks,
     onRowClick,
@@ -51,9 +54,11 @@ export function TimelineSidebar({
     itemHasChildren,
 }) {
     const asideRef = useRef(null);
+    const railRef = useRef(null);
     const inputRefs = useRef(new Map());
     const modifierStateRef = useRef({ shiftKey: false, metaKey: false, ctrlKey: false });
     const suppressRowClickRef = useRef(null);
+    const suppressClearSelectionRef = useRef(false);
     const dragStateRef = useRef({
         activeId: null,
         activeIds: [],
@@ -74,6 +79,18 @@ export function TimelineSidebar({
         rowKey: null,
         mode: 'row',
     });
+    const marqueeActiveRef = useRef(false);
+    const { handleRailPointerDown, isMarqueeActive, marqueeRect } = useSidebarMarquee({
+        activeDragId: dragState.activeId,
+        onMarqueeSelect,
+        railRef,
+        suppressClearSelectionRef,
+        suppressRowClickRef,
+    });
+
+    useEffect(() => {
+        marqueeActiveRef.current = isMarqueeActive;
+    }, [isMarqueeActive]);
 
     useEffect(() => {
         if (focusedComposerParentId === null) {
@@ -113,7 +130,13 @@ export function TimelineSidebar({
         }
 
         function onDocumentPointerDown(event) {
-            if (event.button !== 0) {
+            if (event.button !== 0 || marqueeActiveRef.current) {
+                return;
+            }
+
+            if (suppressClearSelectionRef.current) {
+                suppressClearSelectionRef.current = false;
+
                 return;
             }
 
@@ -445,7 +468,7 @@ export function TimelineSidebar({
     }
 
     function handleRowClick(item, event) {
-        if (suppressRowClickRef.current === item.id) {
+        if (suppressRowClickRef.current === item.id || suppressRowClickRef.current === '__marquee__') {
             suppressRowClickRef.current = null;
 
             return;
@@ -519,8 +542,16 @@ export function TimelineSidebar({
                 }}
             >
                 <div
+                    ref={railRef}
                     className="timeline-rail"
+                    onPointerDownCapture={handleRailPointerDown}
                     onClick={(event) => {
+                        if (suppressClearSelectionRef.current) {
+                            suppressClearSelectionRef.current = false;
+
+                            return;
+                        }
+
                         if (event.target === event.currentTarget) {
                             onClearSelection();
                         }
@@ -657,7 +688,7 @@ export function TimelineSidebar({
                             {row.kind === 'composer' && (
                                 <div
                                     className="timeline-composer-row flex h-full items-center px-4"
-                                    style={{ paddingLeft: `${22 + (row.project_depth ?? 0) * PROJECT_INDENT + row.depth * TASK_INDENT}px` }}
+                                    style={{ paddingLeft: `${TASK_ROW_BASE_PADDING + (row.project_depth ?? 0) * PROJECT_INDENT + row.depth * TASK_INDENT}px` }}
                                     onPointerDown={() => onClearSelection()}
                                 >
                                     <input
@@ -690,6 +721,18 @@ export function TimelineSidebar({
                     ))}
                 </div>
             </DndContext>
+            {marqueeRect && (
+                <div
+                    aria-hidden
+                    className="timeline-marquee-rect"
+                    style={{
+                        left: marqueeRect.left,
+                        top: marqueeRect.top,
+                        width: marqueeRect.right - marqueeRect.left,
+                        height: marqueeRect.bottom - marqueeRect.top,
+                    }}
+                />
+            )}
             <SidebarContextMenu
                 anchor={contextMenuState.anchor}
                 actions={contextMenuActions}
@@ -774,7 +817,7 @@ function DraggableTreeRow({
                 )}
                 data-hovered={hovered ? 'true' : 'false'}
                 data-task-id={item.id}
-                style={{ paddingLeft: `${22 + projectDepth * PROJECT_INDENT + item.depth * TASK_INDENT}px` }}
+                style={{ paddingLeft: `${TASK_ROW_BASE_PADDING + projectDepth * PROJECT_INDENT + item.depth * TASK_INDENT}px` }}
                 onPointerDownCapture={(event) => {
                     onPointerSelect?.(item, event);
                 }}
@@ -797,13 +840,30 @@ function DraggableTreeRow({
                         y: event.clientY,
                     }, selectedRootIds?.includes(item.id) ? 'selection' : 'row');
                 }}
-                {...attributes}
-                {...listeners}
             >
+                <button
+                    type="button"
+                    aria-label="Reorder task"
+                    data-marquee-ignore
+                    className={cn(
+                        'timeline-row-drag-handle inline-flex h-5 w-4 shrink-0 items-center justify-center rounded-md text-stone-300 transition',
+                        'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
+                        'group-focus-within:opacity-100 group-focus-within:pointer-events-auto',
+                        selected && 'opacity-100 pointer-events-auto',
+                        isDragging && 'text-stone-500',
+                    )}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
+                    {...attributes}
+                    {...listeners}
+                >
+                    <GripVertical className="h-3.5 w-3.5" strokeWidth={2.2} />
+                </button>
                 {isGroup ? (
                     <button
                         type="button"
                         aria-label={hasChildren ? (collapsedGroupIds.includes(item.id) ? 'Expand group' : 'Collapse group') : undefined}
+                        data-marquee-ignore
                         className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-stone-400 transition hover:bg-stone-100 hover:text-stone-900"
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
@@ -859,7 +919,7 @@ function RowActionControls({ actions, className, menuOpen, onCloseMenu, onOpenMe
     }
 
     return (
-        <div className={cn('flex items-center gap-1', className)}>
+        <div className={cn('flex items-center gap-1', className)} data-marquee-ignore>
             {inlineAction && (
                 <button
                     type="button"

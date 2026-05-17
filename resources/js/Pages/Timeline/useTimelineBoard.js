@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { DEFAULT_TIMELINE_DENSITY, timelineDensityFor } from './constants';
 import {
+    applyMarqueeSelection,
+    coerceSidebarHitIds,
     directBatchCompletionIds,
     extendSidebarSelection,
     normalizeSelectedSidebarIds,
@@ -211,6 +213,19 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
 
         setSingleSidebarSelection(item.id);
         openTaskModal(item);
+    }
+
+    function applySidebarMarqueeSelection(hitIds, modifiers) {
+        const resolvedHitIds = coerceSidebarHitIds(hitIds, selectableItemIds);
+
+        setSelectedSidebarItemIds((current) => applyMarqueeSelection(
+            current,
+            resolvedHitIds,
+            selectableItemIds,
+            selectableItems,
+            modifiers,
+        ));
+        setSidebarSelectionAnchorId(resolvedHitIds[0] ?? null);
     }
 
     async function markSelectedSidebarItems(completed) {
@@ -815,6 +830,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         updateTaskAssignee,
         setSingleSidebarSelection,
         handleSidebarItemClick,
+        applySidebarMarqueeSelection,
         extendSidebarItemRange,
         duplicateTaskFromModal,
         duplicateProjectFromModal,

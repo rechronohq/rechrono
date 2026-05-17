@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
+    test: {
+        environment: 'node',
+        include: ['resources/js/**/*.test.js'],
+    },
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('./resources/js', import.meta.url)),

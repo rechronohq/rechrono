@@ -61,6 +61,52 @@ export function extendSidebarSelection(selectedIds, anchorId, targetId, orderedI
     );
 }
 
+export function sidebarIdsMatch(leftId, rightId) {
+    return String(leftId) === String(rightId);
+}
+
+export function coerceSidebarHitIds(hitIds, orderedIds) {
+    const orderedIdByKey = new Map(orderedIds.map((id) => [String(id), id]));
+
+    return hitIds
+        .map((hitId) => orderedIdByKey.get(String(hitId)) ?? null)
+        .filter((hitId) => hitId !== null);
+}
+
+export function rectsIntersect(a, b) {
+    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+export function sidebarIdsInClientRect(clientRect, rowRects) {
+    return rowRects
+        .filter(({ rect }) => rectsIntersect(clientRect, rect))
+        .map(({ id }) => id);
+}
+
+export function applyMarqueeSelection(selectedIds, hitIds, orderedIds, items, { shiftKey, metaKey, ctrlKey }) {
+    if (metaKey || ctrlKey) {
+        let nextSelectedIds = [...selectedIds];
+
+        for (const hitId of hitIds) {
+            nextSelectedIds = nextSelectedIds.includes(hitId)
+                ? nextSelectedIds.filter((candidateId) => candidateId !== hitId)
+                : [...nextSelectedIds, hitId];
+        }
+
+        return normalizeSelectedSidebarIds(nextSelectedIds, orderedIds, items);
+    }
+
+    if (shiftKey) {
+        return normalizeSelectedSidebarIds(
+            Array.from(new Set([...selectedIds, ...hitIds])),
+            orderedIds,
+            items,
+        );
+    }
+
+    return normalizeSelectedSidebarIds(hitIds, orderedIds, items);
+}
+
 export function directBatchCompletionIds(selectedRootIds, items) {
     const itemsById = itemMap(items);
     const completionIds = new Set();
