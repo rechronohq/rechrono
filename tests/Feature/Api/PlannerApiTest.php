@@ -118,6 +118,11 @@ class PlannerApiTest extends TestCase
         $team = Team::factory()->create(['slug' => 'api-team']);
         $user = User::factory()->for($team)->create();
         $project = Project::factory()->for($team)->create();
+        $dependency = Task::factory()->create([
+            'project_id' => $project->id,
+            'start_date' => '2026-05-18',
+            'end_date' => '2026-05-19',
+        ]);
 
         Sanctum::actingAs($user);
 
@@ -126,10 +131,12 @@ class PlannerApiTest extends TestCase
                 'name' => 'API task',
                 'start_date' => '2026-05-20',
                 'end_date' => '2026-05-22',
+                'dependency_id' => $dependency->id,
                 'assignee_user_id' => $user->id,
             ])
             ->assertCreated()
             ->assertJsonPath('data.name', 'API task')
+            ->assertJsonPath('data.dependency_id', $dependency->id)
             ->assertJsonPath('data.assignee_user_id', $user->id);
 
         $task = Task::query()->findOrFail($createResponse->json('data.id'));

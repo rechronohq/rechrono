@@ -42,6 +42,9 @@ class ProjectTaskService
         }
 
         $assignment = $this->validatedAssignment($team, $validated);
+        $dependency = ($validated['dependency_id'] ?? null) === null
+            ? null
+            : $project->tasks()->findOrFail($validated['dependency_id']);
 
         return $project->tasks()->create([
             'parent_id' => $parent?->id,
@@ -51,7 +54,7 @@ class ProjectTaskService
             'start_date' => $kind === Task::KIND_GROUP ? null : $validated['start_date'],
             'end_date' => $kind === Task::KIND_GROUP ? null : $validated['end_date'],
             'progress' => 0,
-            'dependency_id' => null,
+            'dependency_id' => $dependency?->id,
             'assignee_user_id' => $kind === Task::KIND_GROUP ? null : $assignment['assignee_user_id'],
             'completed' => false,
             'sort_order' => $project->tasks()
