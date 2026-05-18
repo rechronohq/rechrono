@@ -806,7 +806,7 @@ function DraggableTreeRow({
 
             <div
                 className={cn(
-                    'timeline-tree-row group relative z-[2] flex h-full items-center gap-2 px-4 text-[12.5px]',
+                    'timeline-tree-row group relative z-[2] flex h-full items-center pr-4 text-[12.5px]',
                     isGroup && 'timeline-tree-row-group',
                     item.completed ? 'text-stone-500' : 'text-stone-700',
                     selected && 'timeline-tree-row-selected',
@@ -817,7 +817,6 @@ function DraggableTreeRow({
                 )}
                 data-hovered={hovered ? 'true' : 'false'}
                 data-task-id={item.id}
-                style={{ paddingLeft: `${TASK_ROW_BASE_PADDING + projectDepth * PROJECT_INDENT + item.depth * TASK_INDENT}px` }}
                 onPointerDownCapture={(event) => {
                     onPointerSelect?.(item, event);
                 }}
@@ -859,53 +858,58 @@ function DraggableTreeRow({
                 >
                     <GripVertical className="h-3.5 w-3.5" strokeWidth={2.2} />
                 </button>
-                {isGroup ? (
-                    <button
-                        type="button"
-                        aria-label={hasChildren ? (collapsedGroupIds.includes(item.id) ? 'Expand group' : 'Collapse group') : undefined}
-                        data-marquee-ignore
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-stone-400 transition hover:bg-stone-100 hover:text-stone-900"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onToggleGroupCollapse(item.id);
-                        }}
-                    >
-                        {hasChildren ? (
-                            collapsedGroupIds.includes(item.id) ? (
-                                <ChevronRight className="h-3 w-3" strokeWidth={2.4} />
-                            ) : (
-                                <ChevronDown className="h-3 w-3" strokeWidth={2.4} />
-                            )
-                        ) : (
-                            <span className="h-5 w-5 shrink-0" />
-                        )}
-                    </button>
-                ) : (
-                    <div
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <Checkbox checked={item.completed} onCheckedChange={(checked) => onToggleCompletion(item, checked)} />
-                    </div>
-                )}
-                <span
-                    className={cn(
-                        'min-w-0 flex-1 truncate',
-                        isGroup
-                            ? 'text-[13px] font-semibold tracking-[-0.012em] text-stone-900'
-                            : (item.completed ? 'text-stone-500' : 'text-stone-800'),
-                    )}
+                <div
+                    className="flex min-w-0 flex-1 items-center gap-2"
+                    style={{ paddingLeft: `${TASK_ROW_BASE_PADDING + 24 + projectDepth * PROJECT_INDENT + item.depth * TASK_INDENT}px` }}
                 >
-                    {item.name}
-                </span>
-                <RowActionControls
-                    actions={actions}
-                    className="ml-auto"
-                    menuOpen={menuOpen}
-                    onCloseMenu={onCloseMenu}
-                    onOpenMenu={onOpenMenu}
-                />
+                    {isGroup ? (
+                        <button
+                            type="button"
+                            aria-label={hasChildren ? (collapsedGroupIds.includes(item.id) ? 'Expand group' : 'Collapse group') : undefined}
+                            data-marquee-ignore
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-stone-400 transition hover:bg-stone-100 hover:text-stone-900"
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onToggleGroupCollapse(item.id);
+                            }}
+                        >
+                            {hasChildren ? (
+                                collapsedGroupIds.includes(item.id) ? (
+                                    <ChevronRight className="h-3 w-3" strokeWidth={2.4} />
+                                ) : (
+                                    <ChevronDown className="h-3 w-3" strokeWidth={2.4} />
+                                )
+                            ) : (
+                                <span className="h-5 w-5 shrink-0" />
+                            )}
+                        </button>
+                    ) : (
+                        <div
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => event.stopPropagation()}
+                        >
+                            <Checkbox checked={item.completed} onCheckedChange={(checked) => onToggleCompletion(item, checked)} />
+                        </div>
+                    )}
+                    <span
+                        className={cn(
+                            'min-w-0 flex-1 truncate',
+                            isGroup
+                                ? 'text-[13px] font-semibold tracking-[-0.012em] text-stone-900'
+                                : (item.completed ? 'text-stone-500' : 'text-stone-800'),
+                        )}
+                    >
+                        {item.name}
+                    </span>
+                    <RowActionControls
+                        actions={actions}
+                        className="ml-auto"
+                        menuOpen={menuOpen}
+                        onCloseMenu={onCloseMenu}
+                        onOpenMenu={onOpenMenu}
+                    />
+                </div>
             </div>
         </div>
     );

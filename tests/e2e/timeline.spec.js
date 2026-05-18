@@ -164,6 +164,23 @@ test('project rows align with the timeline day band', async ({ page }) => {
     expect(projectRowBox.y).toBeGreaterThanOrEqual(dayBandBox.y + dayBandBox.height - 1);
 });
 
+test('task reorder handles align across task nesting levels', async ({ page }) => {
+    await login(page);
+
+    const rootTaskRow = sidebarTaskRow(page, 'Planning');
+    const childTaskRow = sidebarTaskRow(page, 'Scenario review');
+
+    await expect(rootTaskRow).toBeVisible();
+    await expect(childTaskRow).toBeVisible();
+
+    const rootHandleBox = await rootTaskRow.getByRole('button', { name: 'Reorder task' }).boundingBox();
+    const childHandleBox = await childTaskRow.getByRole('button', { name: 'Reorder task' }).boundingBox();
+
+    expect(rootHandleBox).not.toBeNull();
+    expect(childHandleBox).not.toBeNull();
+    expect(Math.round(childHandleBox.x)).toBe(Math.round(rootHandleBox.x));
+});
+
 test('date header stays fixed while scrolling the timeline', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 360 });
     await login(page);
