@@ -30,6 +30,10 @@ npm run build
 composer run dev
 ```
 
+## API
+
+See [docs/api.md](docs/api.md) for authentication, endpoint, and payload details.
+
 ## Tests
 
 ```bash
