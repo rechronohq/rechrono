@@ -12,6 +12,11 @@ use Illuminate\Validation\ValidationException;
 
 class ProjectTaskService
 {
+    public function __construct(
+        protected ProjectTaskCompletionService $completionService,
+        protected ProjectTaskDuplicationService $duplicationService,
+    ) {}
+
     public function create(Team $team, Project $project, array $validated): Task
     {
         $kind = $validated['kind'] ?? Task::KIND_TASK;
@@ -164,7 +169,7 @@ class ProjectTaskService
         }
 
         if (array_key_exists('completed', $validated)) {
-            $this->cascadeCompletionDown($task, $validated['completed']);
+            $this->completionService->cascadeCompletionDown($task, $validated['completed']);
         }
 
         if ($convertingToGroup) {
@@ -173,10 +178,10 @@ class ProjectTaskService
                 ->update(['dependency_id' => null]);
         }
 
-        $this->syncAncestorCompletion($task, $allTasks);
+        $this->completionService->syncAncestorCompletion($task, $allTasks);
 
         if ($structureChanged) {
-            $this->syncAncestorChainsAfterMove($task, $oldProjectId, $oldAncestorIds);
+            $this->completionService->syncAncestorChainsAfterMove($task, $oldProjectId, $oldAncestorIds);
         }
 
         return $targetProject;
@@ -200,40 +205,7 @@ class ProjectTaskService
 
     public function duplicate(Project $project, Task $task): Task
     {
-        abort_unless($task->project_id === $project->id, 404);
-
-        return DB::transaction(function () use ($project, $task): Task {
-            $taskMap = [];
-            $copy = $this->duplicateTaskTree($task, $project->id, $task->parent_id, $taskMap, $task->isGroup());
-
-            if ($copy->parent_id === null) {
-                $siblings = $project->tasks()
-                    ->whereNull('parent_id')
-                    ->orderBy('sort_order')
-                    ->pluck('id')
-                    ->all();
-
-                $this->insertTaskAfter($siblings, $task->id, $copy->id);
-            } else {
-                $siblings = $project->tasks()
-                    ->where('parent_id', $copy->parent_id)
-                    ->orderBy('sort_order')
-                    ->pluck('id')
-                    ->all();
-
-                $this->insertTaskAfter($siblings, $task->id, $copy->id);
-            }
-
-            foreach ($task->descendantsAndSelf() as $sourceTask) {
-                if ($sourceTask->dependency_id !== null && isset($taskMap[$sourceTask->id], $taskMap[$sourceTask->dependency_id])) {
-                    Task::query()
-                        ->where('id', $taskMap[$sourceTask->id])
-                        ->update(['dependency_id' => $taskMap[$sourceTask->dependency_id]]);
-                }
-            }
-
-            return $copy;
-        });
+        return $this->duplicationService->duplicate($project, $task);
     }
 
     public function delete(Project $project, Task $task): void
@@ -435,41 +407,6 @@ class ProjectTaskService
         }
     }
 
-    protected function syncAncestorChainsAfterMove(Task $task, string $oldProjectId, array $oldAncestorIds): void
-    {
-        foreach ($oldAncestorIds as $ancestorId) {
-            $children = Task::query()
-                ->where('project_id', $oldProjectId)
-                ->where('parent_id', $ancestorId)
-                ->get(['completed']);
-
-            $completed = $children->isNotEmpty() && $children->every(fn (Task $candidate): bool => $candidate->completed);
-
-            Task::query()
-                ->where('id', $ancestorId)
-                ->update([
-                    'completed' => $completed,
-                    'progress' => $completed ? 100 : 0,
-                ]);
-        }
-
-        $newTasks = Task::query()
-            ->where('project_id', $task->project_id)
-            ->get(['id', 'parent_id', 'progress', 'completed']);
-
-        foreach ($task->ancestorIds($newTasks) as $ancestorId) {
-            $children = $newTasks->filter(fn (Task $candidate): bool => $candidate->parent_id === $ancestorId);
-            $completed = $children->isNotEmpty() && $children->every(fn (Task $candidate): bool => $candidate->completed);
-
-            Task::query()
-                ->where('id', $ancestorId)
-                ->update([
-                    'completed' => $completed,
-                    'progress' => $completed ? 100 : 0,
-                ]);
-        }
-    }
-
     protected function shiftDescendants(Task $task, ?string $originalStart, string $newStart): void
     {
         if ($originalStart === null || $originalStart === $newStart) {
@@ -495,40 +432,6 @@ class ProjectTaskService
                 'start_date' => $descendant->start_date->copy()->addDays($offset),
                 'end_date' => $descendant->end_date->copy()->addDays($offset),
             ]);
-        }
-    }
-
-    protected function cascadeCompletionDown(Task $task, bool $completed): void
-    {
-        $descendants = Task::query()
-            ->whereIn('id', $task->descendantIds())
-            ->get();
-
-        foreach ($descendants as $descendant) {
-            $descendant->update([
-                'completed' => $completed,
-                'progress' => $completed ? 100 : min($descendant->progress, 99),
-            ]);
-        }
-    }
-
-    protected function syncAncestorCompletion(Task $task, Collection $initialTasks): void
-    {
-        $tasks = Task::query()
-            ->where('project_id', $task->project_id)
-            ->get(['id', 'parent_id', 'progress', 'completed'])
-            ->keyBy('id');
-
-        foreach ($task->ancestorIds($initialTasks) as $ancestorId) {
-            $descendants = $tasks->filter(fn (Task $candidate): bool => $candidate->parent_id === $ancestorId);
-            $completed = $descendants->isNotEmpty() && $descendants->every(fn (Task $candidate): bool => $candidate->completed);
-
-            Task::query()
-                ->where('id', $ancestorId)
-                ->update([
-                    'completed' => $completed,
-                    'progress' => $completed ? 100 : 0,
-                ]);
         }
     }
 
@@ -660,38 +563,6 @@ class ProjectTaskService
         return $maxDepth;
     }
 
-    protected function duplicateTaskTree(Task $sourceTask, string $projectId, ?string $parentId, array &$taskMap, bool $resetState = false): Task
-    {
-        $baseName = $sourceTask->isGroup()
-            ? preg_replace('/\s+Group$/i', '', $sourceTask->name) ?? $sourceTask->name
-            : $sourceTask->name;
-
-        $copy = Task::query()->create([
-            'project_id' => $projectId,
-            'parent_id' => $parentId,
-            'kind' => $sourceTask->kind,
-            'name' => $this->duplicateName($baseName, Task::query()->where('project_id', $projectId)->pluck('name')->all()),
-            'description' => $sourceTask->description,
-            'start_date' => $sourceTask->isGroup() ? null : $sourceTask->start_date,
-            'end_date' => $sourceTask->isGroup() ? null : $sourceTask->end_date,
-            'progress' => $resetState ? 0 : $sourceTask->progress,
-            'assignee_user_id' => $resetState ? null : $sourceTask->assignee_user_id,
-            'completed' => $resetState ? false : $sourceTask->completed,
-            'sort_order' => Task::query()
-                ->where('project_id', $projectId)
-                ->where('parent_id', $parentId)
-                ->max('sort_order') + 1,
-        ]);
-
-        $taskMap[$sourceTask->id] = $copy->id;
-
-        foreach ($sourceTask->children as $child) {
-            $this->duplicateTaskTree($child, $projectId, $copy->id, $taskMap, $resetState);
-        }
-
-        return $copy;
-    }
-
     protected function assertGroupPayloadIsValid(array $validated, bool $partial = false, ?string $interaction = null): void
     {
         $errors = [];
@@ -719,37 +590,6 @@ class ProjectTaskService
 
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
-        }
-    }
-
-    protected function duplicateName(string $baseName, array $existingNames): string
-    {
-        $candidate = sprintf('%s Copy', $baseName);
-        $suffix = 2;
-
-        while (in_array($candidate, $existingNames, true)) {
-            $candidate = sprintf('%s Copy %d', $baseName, $suffix);
-            $suffix++;
-        }
-
-        return $candidate;
-    }
-
-    protected function insertTaskAfter(array $orderedIds, string $sourceId, string $copyId): void
-    {
-        $ids = array_values(array_filter($orderedIds, fn (string $id): bool => $id !== $copyId));
-        $sourceIndex = array_search($sourceId, $ids, true);
-
-        if ($sourceIndex === false) {
-            $ids[] = $copyId;
-        } else {
-            array_splice($ids, $sourceIndex + 1, 0, [$copyId]);
-        }
-
-        foreach ($ids as $index => $taskId) {
-            Task::query()
-                ->where('id', $taskId)
-                ->update(['sort_order' => $index + 1]);
         }
     }
 }
