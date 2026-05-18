@@ -7,6 +7,7 @@ use App\Models\Task;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class PlannerApiTest extends TestCase
@@ -31,7 +32,9 @@ class PlannerApiTest extends TestCase
             'is_active' => false,
         ]);
 
-        $this->actingAs($user)
+        Sanctum::actingAs($user);
+
+        $this
             ->getJson(route('api.projects.index', $team))
             ->assertOk()
             ->assertJsonPath('data.0.id', $visibleProject->id)
@@ -54,7 +57,9 @@ class PlannerApiTest extends TestCase
             'sort_order' => 1,
         ]);
 
-        $this->actingAs($user)
+        Sanctum::actingAs($user);
+
+        $this
             ->getJson(route('api.projects.show', [$team, $project]))
             ->assertOk()
             ->assertJsonPath('data.id', $project->id)
@@ -68,7 +73,9 @@ class PlannerApiTest extends TestCase
         $user = User::factory()->for($firstTeam)->create();
         $secondProject = Project::factory()->for($secondTeam)->create();
 
-        $this->actingAs($user)
+        Sanctum::actingAs($user);
+
+        $this
             ->getJson(route('api.projects.show', [$secondTeam, $secondProject]))
             ->assertNotFound();
     }
@@ -79,7 +86,9 @@ class PlannerApiTest extends TestCase
         $user = User::factory()->for($team)->create();
         $project = Project::factory()->for($team)->create();
 
-        $createResponse = $this->actingAs($user)
+        Sanctum::actingAs($user);
+
+        $createResponse = $this
             ->postJson(route('api.projects.tasks.store', [$team, $project]), [
                 'name' => 'API task',
                 'start_date' => '2026-05-20',
@@ -92,7 +101,7 @@ class PlannerApiTest extends TestCase
 
         $task = Task::query()->findOrFail($createResponse->json('data.id'));
 
-        $this->actingAs($user)
+        $this
             ->patchJson(route('api.projects.tasks.update', [$team, $project, $task]), [
                 'completed' => true,
             ])
@@ -100,7 +109,7 @@ class PlannerApiTest extends TestCase
             ->assertJsonPath('data.completed', true)
             ->assertJsonPath('data.progress', 100);
 
-        $this->actingAs($user)
+        $this
             ->deleteJson(route('api.projects.tasks.destroy', [$team, $project, $task]))
             ->assertNoContent();
 

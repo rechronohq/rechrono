@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\ProjectTaskApiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('{team:slug}')
-    ->middleware(['auth', 'team.member'])
+    ->middleware(['auth:sanctum', 'team.member'])
     ->scopeBindings()
     ->group(function () {
         Route::get('/projects', [ProjectApiController::class, 'index'])->name('api.projects.index');
