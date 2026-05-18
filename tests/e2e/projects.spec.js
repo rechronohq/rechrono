@@ -3,6 +3,12 @@ import { expect, test } from '@playwright/test';
 import { login, marqueeSelect } from './helpers/app';
 
 async function openProjectTaskViewMenu(page) {
+    const menu = page.getByTestId('project-task-view-menu');
+
+    if (await menu.isVisible().catch(() => false)) {
+        return;
+    }
+
     await page.getByTestId('project-task-view-menu-trigger').click();
 }
 
@@ -166,6 +172,10 @@ test('project and task selection use square controls in project view', async ({ 
     await taskRow.hover();
     await expect(taskSelector).toHaveCSS('opacity', '1');
     await expect(taskRow.getByRole('checkbox', { name: 'Mark complete Scenario review' })).toBeVisible();
+
+    const taskNameButton = taskRow.getByRole('button', { name: 'Edit Scenario review' });
+    await taskNameButton.hover();
+    await expect(taskNameButton).toHaveCSS('text-decoration-line', 'underline');
 });
 
 test('projects page can delete multiple selected projects', async ({ page }) => {
@@ -323,11 +333,47 @@ test('project detail shows related tasks grouped by person', async ({ page }) =>
     await expect(page.getByRole('heading', { name: 'Build planner' })).toBeVisible();
 
     const unassignedGroup = page.locator('.projects-detail-assignee').filter({ has: page.getByRole('heading', { name: 'Unassigned' }) });
-    await expect(unassignedGroup.getByRole('checkbox', { name: 'Select all tasks for Unassigned' })).toHaveCount(0);
-    await expect(unassignedGroup.getByRole('checkbox', { name: /^Select / })).toHaveCount(7);
+    const unassignedHeader = unassignedGroup.locator('.projects-detail-assignee__header');
+    const sectionSelector = unassignedGroup.getByRole('checkbox', { name: 'Select all tasks for Unassigned' });
+    await page.mouse.move(1, 1);
+    await expect(sectionSelector).toBeVisible();
+    await expect(sectionSelector).toHaveCSS('opacity', '0');
+    await unassignedHeader.hover();
+    await expect(sectionSelector).toHaveCSS('opacity', '1');
+    await expect(unassignedGroup.getByRole('checkbox', { name: /^Select (?!all tasks for)/ })).toHaveCount(7);
 });
 
-test('project detail supports rectangle task selection', async ({ page }) => {
+test('project detail section checkbox selects and clears visible tasks in that section', async ({ page }) => {
+    await login(page);
+
+    await page.goto('/projects');
+    await page.getByRole('row', { name: /Default Planning Board/ }).getByRole('link', { name: 'Default Planning Board' }).click();
+
+    const unassignedGroup = page.locator('.projects-detail-assignee').filter({ has: page.getByRole('heading', { name: 'Unassigned' }) });
+    const sectionSelector = unassignedGroup.getByRole('checkbox', { name: 'Select all tasks for Unassigned' });
+    const firstTask = unassignedGroup.locator('.projects-detail-task').filter({ hasText: 'Kickoff and scope' });
+    const secondTask = unassignedGroup.locator('.projects-detail-task').filter({ hasText: 'Build planner' }).first();
+
+    await expect(sectionSelector).toBeVisible();
+    await expect(sectionSelector).not.toBeChecked();
+    await unassignedGroup.locator('.projects-detail-assignee__header').hover();
+
+    await sectionSelector.click();
+
+    await expect(firstTask).toHaveAttribute('data-state', 'selected');
+    await expect(secondTask).toHaveAttribute('data-state', 'selected');
+    await expect(sectionSelector).toBeChecked();
+    await expect(page.getByRole('button', { name: '7 selected' })).toBeVisible();
+
+    await sectionSelector.click();
+
+    await expect(firstTask).not.toHaveAttribute('data-state', 'selected');
+    await expect(secondTask).not.toHaveAttribute('data-state', 'selected');
+    await expect(sectionSelector).not.toBeChecked();
+    await expect(page.getByRole('button', { name: '7 selected' })).toHaveCount(0);
+});
+
+test('project detail ignores rectangle task selection gestures', async ({ page }) => {
     await login(page);
 
     await page.goto('/projects');
@@ -352,10 +398,11 @@ test('project detail supports rectangle task selection', async ({ page }) => {
         { x: secondBox.x + secondBox.width - 48, y: secondBox.y + secondBox.height - 6 },
     );
 
-    await expect(firstTask).toHaveAttribute('data-state', 'selected');
-    await expect(middleTask).toHaveAttribute('data-state', 'selected');
-    await expect(secondTask).toHaveAttribute('data-state', 'selected');
-    await expect(page.getByText('3 selected')).toBeVisible();
+    await expect(firstTask).not.toHaveAttribute('data-state', 'selected');
+    await expect(middleTask).not.toHaveAttribute('data-state', 'selected');
+    await expect(secondTask).not.toHaveAttribute('data-state', 'selected');
+    await expect(page.getByRole('button', { name: '3 selected' })).toHaveCount(0);
+    await expect(page.locator('.projects-detail-section__selected-count')).toHaveCount(0);
 });
 
 test('project detail hides timeline groups as tasks and can group tasks by them', async ({ page }) => {
@@ -490,8 +537,9 @@ test('project detail can mark selected tasks complete from bulk actions', async 
     await launchRow.hover();
     await launchRow.getByRole('checkbox', { name: 'Select Review and launch' }).click();
 
-    await expect(page.getByText('2 selected')).toBeVisible();
-    await page.getByRole('button', { name: 'Bulk actions' }).click();
+    await expect(page.getByRole('button', { name: '2 selected' })).toBeVisible();
+    await expect(page.locator('.projects-detail-section__selected-count')).toHaveCount(0);
+    await page.getByRole('button', { name: '2 selected' }).click();
     await page.getByRole('menuitem', { name: 'Mark selected complete' }).click();
 
     await scenarioRow.getByRole('button', { name: 'More actions for Scenario review' }).click();
@@ -500,7 +548,41 @@ test('project detail can mark selected tasks complete from bulk actions', async 
     await launchRow.getByRole('button', { name: 'More actions for Review and launch' }).click();
     await expect(page.getByRole('menuitem', { name: 'Mark incomplete' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByText('2 selected')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '2 selected' })).toHaveCount(0);
+});
+
+test('project detail can mark selected completed tasks incomplete from bulk actions', async ({ page }) => {
+    await login(page);
+
+    await page.goto('/projects');
+    await page.getByRole('row', { name: /Default Planning Board/ }).getByRole('link', { name: 'Default Planning Board' }).click();
+
+    const scenarioRow = page.locator('.projects-detail-task').filter({ hasText: 'Scenario review' });
+    const launchRow = page.locator('.projects-detail-task').filter({ hasText: 'Review and launch' });
+
+    for (const row of [scenarioRow, launchRow]) {
+        await row.getByRole('button', { name: /^More actions for / }).click();
+        const completeItem = page.getByRole('menuitem', { name: 'Mark complete' });
+        if (await completeItem.count()) {
+            await completeItem.click();
+        } else {
+            await page.keyboard.press('Escape');
+        }
+    }
+
+    await scenarioRow.hover();
+    await scenarioRow.getByRole('checkbox', { name: 'Select Scenario review' }).click();
+    await launchRow.hover();
+    await launchRow.getByRole('checkbox', { name: 'Select Review and launch' }).click();
+
+    await page.getByRole('button', { name: '2 selected' }).click();
+    await page.getByRole('menuitem', { name: 'Mark selected incomplete' }).click();
+
+    await scenarioRow.getByRole('button', { name: 'More actions for Scenario review' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Mark complete' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await launchRow.getByRole('button', { name: 'More actions for Review and launch' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Mark complete' })).toBeVisible();
 });
 
 test('project detail shows contextual actions for selected tasks', async ({ page }) => {
@@ -538,7 +620,7 @@ test('project detail can delete selected tasks from bulk actions', async ({ page
     await launchRow.hover();
     await launchRow.getByRole('checkbox', { name: 'Select Review and launch' }).click();
 
-    await page.getByRole('button', { name: 'Bulk actions' }).click();
+    await page.getByRole('button', { name: '2 selected' }).click();
     await page.getByRole('menuitem', { name: 'Delete selected' }).click();
     await expect(page.getByRole('dialog', { name: 'Delete selected tasks?' })).toBeVisible();
     await page.getByRole('button', { name: 'Delete tasks' }).click();
@@ -599,4 +681,3 @@ test('project edit page can update planner fields', async ({ page }) => {
     await expect(page).toHaveURL(/\/projects\/.+/);
     await expect(page.getByText('Updated planner project description.')).toBeVisible();
 });
-
