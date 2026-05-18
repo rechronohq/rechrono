@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\Api\ProjectApiController;
 use App\Http\Controllers\Api\ProjectTaskApiController;
+use App\Http\Controllers\Api\TeamMemberApiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('{team:slug}')
     ->middleware(['auth:sanctum', 'team.member'])
     ->scopeBindings()
     ->group(function () {
+        Route::get('/members', [TeamMemberApiController::class, 'index'])->name('api.members.index');
         Route::get('/projects', [ProjectApiController::class, 'index'])->name('api.projects.index');
         Route::post('/projects', [ProjectApiController::class, 'store'])->name('api.projects.store');
         Route::get('/projects/{project}', [ProjectApiController::class, 'show'])->name('api.projects.show');

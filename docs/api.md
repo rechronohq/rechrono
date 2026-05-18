@@ -12,6 +12,27 @@ Content-Type: application/json
 
 Requests are scoped to the team in the URL. A valid token must belong to a member of that team.
 
+## Members
+
+### List Members
+
+```http
+GET /api/{team_slug}/members
+```
+
+Returns team members ordered by name. Use this endpoint to discover valid `assignee_user_id` values.
+
+Member resources include:
+
+```json
+{
+  "id": 1,
+  "team_id": "team-uuid",
+  "name": "Sofia Chen",
+  "email": "sofia@example.com"
+}
+```
+
 ## Projects
 
 ### List Projects

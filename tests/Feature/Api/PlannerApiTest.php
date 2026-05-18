@@ -99,6 +99,25 @@ class PlannerApiTest extends TestCase
         $this->assertDatabaseMissing('projects', ['id' => $project->id]);
     }
 
+    public function test_user_can_list_team_members(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $otherTeam = Team::factory()->create(['slug' => 'other-api-team']);
+        $user = User::factory()->for($team)->create(['name' => 'API User']);
+        User::factory()->for($team)->create(['name' => 'Client User']);
+        User::factory()->for($otherTeam)->create(['name' => 'Other Team User']);
+
+        Sanctum::actingAs($user);
+
+        $this
+            ->getJson(route('api.members.index', $team))
+            ->assertOk()
+            ->assertJsonPath('data.0.name', 'API User')
+            ->assertJsonPath('data.1.name', 'Client User')
+            ->assertJsonMissingPath('data.2')
+            ->assertJsonMissing(['name' => 'Other Team User']);
+    }
+
     public function test_user_cannot_read_another_team_project(): void
     {
         $firstTeam = Team::factory()->create(['slug' => 'first-api-team']);
