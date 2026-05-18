@@ -2,8 +2,8 @@
 
 namespace App\Imports\Hive;
 
-use App\Models\User;
 use App\Models\Team;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 

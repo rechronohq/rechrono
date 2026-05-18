@@ -2,8 +2,8 @@
 
 namespace Tests;
 
-use App\Models\User;
 use App\Models\Team;
+use App\Models\User;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 

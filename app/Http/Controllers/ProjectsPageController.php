@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Project;
 use App\Models\Team;
 use App\Support\ProjectsTablePayloadBuilder;
 use Illuminate\Http\Request;

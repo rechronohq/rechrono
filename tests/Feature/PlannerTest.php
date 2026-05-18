@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TimelineView;
 use App\Models\User;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -360,7 +361,7 @@ class PlannerTest extends TestCase
             'timeline_density' => 'comfortable',
         ]);
 
-        $view = \App\Models\TimelineView::query()->findOrFail($viewId);
+        $view = TimelineView::query()->findOrFail($viewId);
 
         $this->assertSame([$projects[1]->id], $view->project_ids);
         $this->assertSame(['user:1'], $view->assignee_filters);

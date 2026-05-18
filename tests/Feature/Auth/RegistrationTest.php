@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Auth;
 
-use App\Models\Team;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
