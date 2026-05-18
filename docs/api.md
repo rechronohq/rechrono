@@ -66,6 +66,30 @@ Supported fields:
 
 Returns `201 Created` with the project resource.
 
+### Create Project From Template
+
+```http
+POST /api/{team_slug}/projects/from-template
+```
+
+Body:
+
+```json
+{
+  "template_project_id": "template-project-uuid",
+  "name": "Client launch",
+  "parent_id": null
+}
+```
+
+Supported fields:
+
+- `template_project_id`: required template project UUID
+- `name`: required string, max 255 characters
+- `parent_id`: nullable project UUID
+
+Returns `201 Created` with the created project resource.
+
 ### Read Project
 
 ```http
@@ -96,6 +120,48 @@ Supported fields:
 - `parent_id`: nullable project UUID
 
 Returns the updated project resource.
+
+### Duplicate Project
+
+```http
+POST /api/{team_slug}/projects/{project_id}/duplicate
+```
+
+Duplicates the project tree and returns `201 Created` with the duplicated project resource.
+
+### Save Project As Template
+
+```http
+POST /api/{team_slug}/projects/{project_id}/template
+```
+
+Creates a template copy of the project tree and returns `201 Created` with the template project resource.
+
+### Bulk Project Action
+
+```http
+POST /api/{team_slug}/projects/bulk-action
+```
+
+Body:
+
+```json
+{
+  "action": "archive",
+  "project_ids": ["project-uuid"]
+}
+```
+
+Supported actions:
+
+- `archive`
+- `unarchive`
+- `change-parent`
+- `delete`
+
+For `change-parent`, include `parent_id` with a project UUID or `null`.
+
+Returns the affected project resources. Deleted projects are omitted because they no longer exist.
 
 ### Delete Project
 

@@ -35,21 +35,21 @@ class ProjectService
         return $project->fresh();
     }
 
-    public function duplicate(Project $project): void
+    public function duplicate(Project $project): Project
     {
-        DB::transaction(function () use ($project): void {
-            $this->duplicateProjectTree($project, [
+        return DB::transaction(function () use ($project): Project {
+            return $this->duplicateProjectTree($project, [
                 'forced_parent_id' => $project->parent_id,
             ]);
         });
     }
 
-    public function saveAsTemplate(Team $team, Project $project): void
+    public function saveAsTemplate(Team $team, Project $project): Project
     {
         abort_if($project->is_template, 422, 'Templates cannot be converted into templates again.');
 
-        DB::transaction(function () use ($team, $project): void {
-            $this->duplicateProjectTree($project, [
+        return DB::transaction(function () use ($team, $project): Project {
+            return $this->duplicateProjectTree($project, [
                 'name' => $this->duplicateName($project->name, $team->projects()->pluck('name')->all(), 'Template'),
                 'is_template' => true,
                 'clear_assignees' => true,

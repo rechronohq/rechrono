@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Projects\BulkProjectActionRequest;
+use App\Http\Requests\Projects\StoreProjectFromTemplateRequest;
 use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
@@ -35,6 +37,13 @@ class ProjectApiController extends Controller
         return ProjectResource::make($project)->response()->setStatusCode(201);
     }
 
+    public function storeFromTemplate(StoreProjectFromTemplateRequest $request, Team $team): JsonResponse
+    {
+        $project = $this->projectService->createFromTemplate($team, $request->validated());
+
+        return ProjectResource::make($project)->response()->setStatusCode(201);
+    }
+
     public function show(Team $team, Project $project): ProjectResource
     {
         return ProjectResource::make(
@@ -44,6 +53,34 @@ class ProjectApiController extends Controller
                     ->orderBy('start_date')
                     ->orderBy('name'),
             ]),
+        );
+    }
+
+    public function duplicate(Team $team, Project $project): JsonResponse
+    {
+        $projectCopy = $this->projectService->duplicate($project);
+
+        return ProjectResource::make($projectCopy)->response()->setStatusCode(201);
+    }
+
+    public function saveAsTemplate(Team $team, Project $project): JsonResponse
+    {
+        $template = $this->projectService->saveAsTemplate($team, $project);
+
+        return ProjectResource::make($template)->response()->setStatusCode(201);
+    }
+
+    public function bulkAction(BulkProjectActionRequest $request, Team $team): AnonymousResourceCollection
+    {
+        $validated = $request->validated();
+
+        $this->projectService->bulkAction($team, $validated);
+
+        return ProjectResource::collection(
+            $team->projects()
+                ->whereIn('id', $validated['project_ids'])
+                ->orderBy('created_at')
+                ->get(),
         );
     }
 

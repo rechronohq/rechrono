@@ -99,6 +99,107 @@ class PlannerApiTest extends TestCase
         $this->assertDatabaseMissing('projects', ['id' => $project->id]);
     }
 
+    public function test_user_can_create_project_from_template(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $user = User::factory()->for($team)->create();
+        $template = Project::factory()->for($team)->create([
+            'name' => 'Launch Template',
+            'is_template' => true,
+        ]);
+        Task::factory()->create([
+            'project_id' => $template->id,
+            'name' => 'Template task',
+            'completed' => true,
+            'progress' => 100,
+            'assignee_user_id' => $user->id,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this
+            ->postJson(route('api.projects.from-template', $team), [
+                'template_project_id' => $template->id,
+                'name' => 'Client Launch',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'Client Launch')
+            ->assertJsonPath('data.is_template', false);
+
+        $project = Project::query()->findOrFail($response->json('data.id'));
+
+        $this->assertDatabaseHas('tasks', [
+            'project_id' => $project->id,
+            'name' => 'Template task',
+            'completed' => false,
+            'progress' => 0,
+            'assignee_user_id' => null,
+        ]);
+    }
+
+    public function test_user_can_duplicate_project_and_save_template(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $user = User::factory()->for($team)->create();
+        $project = Project::factory()->for($team)->create(['name' => 'API Project']);
+        Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Original task',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this
+            ->postJson(route('api.projects.duplicate', [$team, $project]))
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'API Project Copy')
+            ->assertJsonPath('data.is_template', false);
+
+        $this
+            ->postJson(route('api.projects.template', [$team, $project]))
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'API Project Template')
+            ->assertJsonPath('data.is_template', true);
+
+        $this->assertDatabaseHas('projects', [
+            'team_id' => $team->id,
+            'name' => 'API Project Copy',
+            'is_template' => false,
+        ]);
+        $this->assertDatabaseHas('projects', [
+            'team_id' => $team->id,
+            'name' => 'API Project Template',
+            'is_template' => true,
+        ]);
+    }
+
+    public function test_user_can_bulk_archive_and_unarchive_projects(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $user = User::factory()->for($team)->create();
+        $firstProject = Project::factory()->for($team)->create();
+        $secondProject = Project::factory()->for($team)->create();
+
+        Sanctum::actingAs($user);
+
+        $this
+            ->postJson(route('api.projects.bulk-action', $team), [
+                'action' => 'archive',
+                'project_ids' => [$firstProject->id, $secondProject->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.0.is_active', false)
+            ->assertJsonPath('data.1.is_active', false);
+
+        $this
+            ->postJson(route('api.projects.bulk-action', $team), [
+                'action' => 'unarchive',
+                'project_ids' => [$firstProject->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.0.is_active', true);
+    }
+
     public function test_user_can_list_team_members(): void
     {
         $team = Team::factory()->create(['slug' => 'api-team']);

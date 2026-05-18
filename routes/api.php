@@ -12,7 +12,11 @@ Route::prefix('{team:slug}')
         Route::get('/members', [TeamMemberApiController::class, 'index'])->name('api.members.index');
         Route::get('/projects', [ProjectApiController::class, 'index'])->name('api.projects.index');
         Route::post('/projects', [ProjectApiController::class, 'store'])->name('api.projects.store');
+        Route::post('/projects/from-template', [ProjectApiController::class, 'storeFromTemplate'])->name('api.projects.from-template');
+        Route::post('/projects/bulk-action', [ProjectApiController::class, 'bulkAction'])->name('api.projects.bulk-action');
         Route::get('/projects/{project}', [ProjectApiController::class, 'show'])->name('api.projects.show');
+        Route::post('/projects/{project}/duplicate', [ProjectApiController::class, 'duplicate'])->name('api.projects.duplicate');
+        Route::post('/projects/{project}/template', [ProjectApiController::class, 'saveAsTemplate'])->name('api.projects.template');
         Route::patch('/projects/{project}', [ProjectApiController::class, 'update'])->name('api.projects.update');
         Route::delete('/projects/{project}', [ProjectApiController::class, 'destroy'])->name('api.projects.destroy');
         Route::post('/projects/{project}/tasks', [ProjectTaskApiController::class, 'store'])->name('api.projects.tasks.store');
