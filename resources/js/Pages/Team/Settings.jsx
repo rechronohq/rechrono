@@ -3,6 +3,7 @@ import { router, useForm, usePage } from '@inertiajs/react';
 import AppPage from '@/Layouts/AppPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 function memberLabel(member) {
     return member.type === 'invitation' ? member.email : member.name;
@@ -19,6 +20,14 @@ function formatTokenTimestamp(value) {
     }).format(new Date(value));
 }
 
+function formatTokenAccess(abilities) {
+    if (abilities?.includes('*') || abilities?.includes('planner:write')) {
+        return 'Read and write';
+    }
+
+    return 'Read only';
+}
+
 export default function TeamSettings({ team, members, apiTokens = [], newApiToken = null, teamSettingsRoutes }) {
     const { auth, flash } = usePage().props;
     const isOwner = auth.team?.is_owner ?? false;
@@ -33,6 +42,7 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
 
     const apiTokenForm = useForm({
         name: '',
+        ability: 'planner:read',
     });
 
     const statusMessages = {
@@ -224,7 +234,7 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                             });
                         }}
                     >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
                             <div className="min-w-0 flex-1 space-y-2">
                                 <label className="text-sm font-medium text-stone-700">Token name</label>
                                 <Input
@@ -233,6 +243,17 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                                     placeholder="Zapier, local script, reporting client"
                                 />
                                 {apiTokenForm.errors.name ? <p className="text-sm text-rose-600">{apiTokenForm.errors.name}</p> : null}
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-stone-700">Access</label>
+                                <Select
+                                    value={apiTokenForm.data.ability}
+                                    onChange={(event) => apiTokenForm.setData('ability', event.target.value)}
+                                >
+                                    <option value="planner:read">Read only</option>
+                                    <option value="planner:write">Read and write</option>
+                                </Select>
+                                {apiTokenForm.errors.ability ? <p className="text-sm text-rose-600">{apiTokenForm.errors.ability}</p> : null}
                             </div>
                             <Button type="submit" disabled={apiTokenForm.processing}>
                                 Create token
@@ -246,7 +267,7 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                                 <div className="min-w-0">
                                     <p className="truncate font-medium text-stone-950">{token.name}</p>
                                     <p className="truncate text-sm text-stone-500">
-                                        Last used: {formatTokenTimestamp(token.last_used_at)}
+                                        {formatTokenAccess(token.abilities)} · Last used: {formatTokenTimestamp(token.last_used_at)}
                                     </p>
                                 </div>
                                 <Button

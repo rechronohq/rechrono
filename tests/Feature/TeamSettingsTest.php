@@ -28,6 +28,7 @@ class TeamSettingsTest extends TestCase
                 ->has('members', 1)
                 ->where('apiTokens.0.id', $token->accessToken->id)
                 ->where('apiTokens.0.name', 'Existing integration')
+                ->where('apiTokens.0.abilities.0', '*')
                 ->where('teamSettingsRoutes.apiTokensStore', route('api-tokens.store', $owner->team)));
     }
 
@@ -230,6 +231,7 @@ class TeamSettingsTest extends TestCase
         $this->actingAs($member)
             ->post(route('api-tokens.store', $member->team), [
                 'name' => 'Local integration',
+                'ability' => 'planner:read',
             ])
             ->assertRedirect(route('team-settings.edit', $member->team))
             ->assertSessionHas('status', 'api-token-created')
@@ -239,6 +241,7 @@ class TeamSettingsTest extends TestCase
             'tokenable_type' => User::class,
             'tokenable_id' => $member->id,
             'name' => 'Local integration',
+            'abilities' => '["planner:read"]',
         ]);
     }
 

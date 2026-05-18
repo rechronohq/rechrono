@@ -32,7 +32,7 @@ class PlannerApiTest extends TestCase
             'is_active' => false,
         ]);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read']);
 
         $this
             ->getJson(route('api.projects.index', $team))
@@ -57,7 +57,7 @@ class PlannerApiTest extends TestCase
             'sort_order' => 1,
         ]);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read']);
 
         $this
             ->getJson(route('api.projects.show', [$team, $project]))
@@ -70,7 +70,7 @@ class PlannerApiTest extends TestCase
     {
         $team = Team::factory()->create(['slug' => 'api-team']);
         $user = User::factory()->for($team)->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
 
         $createResponse = $this
             ->postJson(route('api.projects.store', $team), [
@@ -99,6 +99,26 @@ class PlannerApiTest extends TestCase
         $this->assertDatabaseMissing('projects', ['id' => $project->id]);
     }
 
+    public function test_read_only_token_cannot_mutate_projects(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $user = User::factory()->for($team)->create();
+        $project = Project::factory()->for($team)->create(['name' => 'Readable Project']);
+
+        Sanctum::actingAs($user, ['planner:read']);
+
+        $this
+            ->getJson(route('api.projects.show', [$team, $project]))
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Readable Project');
+
+        $this
+            ->postJson(route('api.projects.store', $team), [
+                'name' => 'Blocked Project',
+            ])
+            ->assertForbidden();
+    }
+
     public function test_user_can_create_project_from_template(): void
     {
         $team = Team::factory()->create(['slug' => 'api-team']);
@@ -115,7 +135,7 @@ class PlannerApiTest extends TestCase
             'assignee_user_id' => $user->id,
         ]);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
 
         $response = $this
             ->postJson(route('api.projects.from-template', $team), [
@@ -147,7 +167,7 @@ class PlannerApiTest extends TestCase
             'name' => 'Original task',
         ]);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
 
         $this
             ->postJson(route('api.projects.duplicate', [$team, $project]))
@@ -180,7 +200,7 @@ class PlannerApiTest extends TestCase
         $firstProject = Project::factory()->for($team)->create();
         $secondProject = Project::factory()->for($team)->create();
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
 
         $this
             ->postJson(route('api.projects.bulk-action', $team), [
@@ -208,7 +228,7 @@ class PlannerApiTest extends TestCase
         User::factory()->for($team)->create(['name' => 'Client User']);
         User::factory()->for($otherTeam)->create(['name' => 'Other Team User']);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read']);
 
         $this
             ->getJson(route('api.members.index', $team))
@@ -226,7 +246,7 @@ class PlannerApiTest extends TestCase
         $user = User::factory()->for($firstTeam)->create();
         $secondProject = Project::factory()->for($secondTeam)->create();
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read']);
 
         $this
             ->getJson(route('api.projects.show', [$secondTeam, $secondProject]))
@@ -244,7 +264,7 @@ class PlannerApiTest extends TestCase
             'end_date' => '2026-05-19',
         ]);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
 
         $createResponse = $this
             ->postJson(route('api.projects.tasks.store', [$team, $project]), [

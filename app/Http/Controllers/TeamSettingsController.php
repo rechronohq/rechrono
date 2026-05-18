@@ -58,10 +58,11 @@ class TeamSettingsController extends Controller
             'apiTokens' => $request->user()
                 ? $request->user()->tokens()
                     ->orderByDesc('created_at')
-                    ->get(['id', 'name', 'last_used_at', 'created_at'])
+                    ->get(['id', 'name', 'abilities', 'last_used_at', 'created_at'])
                     ->map(fn ($token): array => [
                         'id' => $token->id,
                         'name' => $token->name,
+                        'abilities' => $token->abilities,
                         'last_used_at' => $token->last_used_at?->toJSON(),
                         'created_at' => $token->created_at?->toJSON(),
                         'destroy_url' => route('api-tokens.destroy', [$team, $token]),

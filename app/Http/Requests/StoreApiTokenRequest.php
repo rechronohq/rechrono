@@ -18,6 +18,7 @@ class StoreApiTokenRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'ability' => ['required', 'string', 'in:planner:read,planner:write'],
         ];
     }
 }

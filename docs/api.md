@@ -12,6 +12,11 @@ Content-Type: application/json
 
 Requests are scoped to the team in the URL. A valid token must belong to a member of that team.
 
+Token access levels:
+
+- Read only: can call `GET` endpoints.
+- Read and write: can call all read endpoints plus project and task mutation endpoints.
+
 ## Members
 
 ### List Members
