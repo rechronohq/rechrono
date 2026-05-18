@@ -198,11 +198,11 @@ class ProjectTaskService
         $this->moveTaskRelativeToSibling($project, $task, $targetTask, $validated['position']);
     }
 
-    public function duplicate(Project $project, Task $task): void
+    public function duplicate(Project $project, Task $task): Task
     {
         abort_unless($task->project_id === $project->id, 404);
 
-        DB::transaction(function () use ($project, $task): void {
+        return DB::transaction(function () use ($project, $task): Task {
             $taskMap = [];
             $copy = $this->duplicateTaskTree($task, $project->id, $task->parent_id, $taskMap, $task->isGroup());
 
@@ -231,6 +231,8 @@ class ProjectTaskService
                         ->update(['dependency_id' => $taskMap[$sourceTask->dependency_id]]);
                 }
             }
+
+            return $copy;
         });
     }
 

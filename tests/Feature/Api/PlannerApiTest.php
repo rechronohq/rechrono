@@ -295,4 +295,41 @@ class PlannerApiTest extends TestCase
 
         $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
     }
+
+    public function test_user_can_duplicate_and_reorder_project_tasks(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $user = User::factory()->for($team)->create();
+        $project = Project::factory()->for($team)->create();
+        $firstTask = Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'First task',
+            'sort_order' => 1,
+        ]);
+        $secondTask = Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Second task',
+            'sort_order' => 2,
+        ]);
+
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
+
+        $this
+            ->postJson(route('api.projects.tasks.duplicate', [$team, $project, $firstTask]))
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'First task Copy')
+            ->assertJsonPath('data.project_id', $project->id);
+
+        $this
+            ->postJson(route('api.projects.tasks.reorder', [$team, $project]), [
+                'task_id' => $secondTask->id,
+                'target_task_id' => $firstTask->id,
+                'position' => 'before',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $secondTask->id)
+            ->assertJsonPath('data.0.sort_order', 1)
+            ->assertJsonPath('data.1.id', $firstTask->id)
+            ->assertJsonPath('data.1.sort_order', 2);
+    }
 }

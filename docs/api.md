@@ -241,6 +241,38 @@ Supported fields:
 
 Returns the updated task resource.
 
+### Duplicate Task
+
+```http
+POST /api/{team_slug}/projects/{project_id}/tasks/{task_id}/duplicate
+```
+
+Duplicates the task tree and returns `201 Created` with the duplicated task resource.
+
+### Reorder Task
+
+```http
+POST /api/{team_slug}/projects/{project_id}/tasks/reorder
+```
+
+Body:
+
+```json
+{
+  "task_id": "task-uuid",
+  "target_task_id": "target-task-uuid",
+  "position": "before"
+}
+```
+
+Supported positions:
+
+- `before`
+- `after`
+- `into`
+
+Returns root-level task resources for the project in their updated order.
+
 ### Delete Task
 
 ```http

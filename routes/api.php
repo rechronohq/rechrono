@@ -24,6 +24,8 @@ Route::prefix('{team:slug}')
             Route::patch('/projects/{project}', [ProjectApiController::class, 'update'])->name('api.projects.update');
             Route::delete('/projects/{project}', [ProjectApiController::class, 'destroy'])->name('api.projects.destroy');
             Route::post('/projects/{project}/tasks', [ProjectTaskApiController::class, 'store'])->name('api.projects.tasks.store');
+            Route::post('/projects/{project}/tasks/{task}/duplicate', [ProjectTaskApiController::class, 'duplicate'])->name('api.projects.tasks.duplicate');
+            Route::post('/projects/{project}/tasks/reorder', [ProjectTaskApiController::class, 'reorder'])->name('api.projects.tasks.reorder');
             Route::patch('/projects/{project}/tasks/{task}', [ProjectTaskApiController::class, 'update'])->name('api.projects.tasks.update');
             Route::delete('/projects/{project}/tasks/{task}', [ProjectTaskApiController::class, 'destroy'])->name('api.projects.tasks.destroy');
         });
