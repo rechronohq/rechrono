@@ -220,6 +220,43 @@ class PlannerApiTest extends TestCase
             ->assertJsonPath('data.0.is_active', true);
     }
 
+    public function test_project_api_validates_project_references_within_team(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $otherTeam = Team::factory()->create(['slug' => 'other-api-team']);
+        $user = User::factory()->for($team)->create();
+        $project = Project::factory()->for($team)->create();
+        $otherProject = Project::factory()->for($otherTeam)->create();
+        $otherTemplate = Project::factory()->for($otherTeam)->create(['is_template' => true]);
+
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
+
+        $this
+            ->postJson(route('api.projects.store', $team), [
+                'name' => 'Invalid parent',
+                'parent_id' => $otherProject->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('parent_id');
+
+        $this
+            ->postJson(route('api.projects.from-template', $team), [
+                'template_project_id' => $otherTemplate->id,
+                'name' => 'Invalid template',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('template_project_id');
+
+        $this
+            ->postJson(route('api.projects.bulk-action', $team), [
+                'action' => 'change-parent',
+                'project_ids' => [$project->id],
+                'parent_id' => $otherProject->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('parent_id');
+    }
+
     public function test_user_can_list_team_members(): void
     {
         $team = Team::factory()->create(['slug' => 'api-team']);
@@ -294,6 +331,51 @@ class PlannerApiTest extends TestCase
             ->assertNoContent();
 
         $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
+    }
+
+    public function test_task_api_validates_task_and_user_references_within_team(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $otherTeam = Team::factory()->create(['slug' => 'other-api-team']);
+        $user = User::factory()->for($team)->create();
+        $otherUser = User::factory()->for($otherTeam)->create();
+        $project = Project::factory()->for($team)->create();
+        $otherProject = Project::factory()->for($otherTeam)->create();
+        $task = Task::factory()->create(['project_id' => $project->id]);
+        $otherTask = Task::factory()->create(['project_id' => $otherProject->id]);
+
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
+
+        $this
+            ->postJson(route('api.projects.tasks.store', [$team, $project]), [
+                'name' => 'Invalid task references',
+                'start_date' => '2026-05-20',
+                'end_date' => '2026-05-22',
+                'parent_id' => $otherTask->id,
+                'dependency_id' => $otherTask->id,
+                'assignee_user_id' => $otherUser->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['parent_id', 'dependency_id', 'assignee_user_id']);
+
+        $this
+            ->patchJson(route('api.projects.tasks.update', [$team, $project, $task]), [
+                'project_id' => $otherProject->id,
+                'parent_id' => $otherTask->id,
+                'dependency_id' => $otherTask->id,
+                'assignee_user_id' => $otherUser->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['project_id', 'parent_id', 'dependency_id', 'assignee_user_id']);
+
+        $this
+            ->postJson(route('api.projects.tasks.reorder', [$team, $project]), [
+                'task_id' => $task->id,
+                'target_task_id' => $otherTask->id,
+                'position' => 'before',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('target_task_id');
     }
 
     public function test_user_can_duplicate_and_reorder_project_tasks(): void

@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Projects;
 
+use App\Http\Requests\Concerns\ValidatesPlannerScope;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProjectFromTemplateRequest extends FormRequest
 {
+    use ValidatesPlannerScope;
+
     public function authorize(): bool
     {
         return true;
@@ -17,11 +20,11 @@ class StoreProjectFromTemplateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'template_project_id' => ['required', 'uuid', 'exists:projects,id'],
+            'template_project_id' => ['required', 'uuid', $this->teamTemplateProjectRule()],
             'name' => ['required', 'string', 'max:255'],
-            'parent_id' => ['nullable', 'uuid', 'exists:projects,id'],
+            'parent_id' => ['nullable', 'uuid', $this->teamProjectRule()],
             'selected_project_ids' => ['nullable', 'array'],
-            'selected_project_ids.*' => ['uuid', 'exists:projects,id'],
+            'selected_project_ids.*' => ['uuid', $this->teamProjectRule()],
             'selected_assignee_filters' => ['nullable', 'array'],
             'selected_assignee_filters.*' => ['string'],
             'show_weekends' => ['sometimes', 'boolean'],
