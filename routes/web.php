@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\HiveImportController;
 use App\Http\Controllers\ImportsPageController;
 use App\Http\Controllers\ProfileController;
@@ -80,6 +81,8 @@ Route::prefix('{team:slug}')
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
         Route::get('/settings', [TeamSettingsController::class, 'edit'])->name('team-settings.edit');
         Route::patch('/settings', [TeamSettingsController::class, 'update'])->name('team-settings.update');
+        Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
+        Route::delete('/settings/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
         Route::post('/settings/invites', [TeamInviteController::class, 'store'])->name('team-invites.store');
         Route::delete('/settings/invites/{invitation}', [TeamInviteController::class, 'destroy'])->name('team-invites.destroy');
         Route::delete('/settings/members/{user}', [TeamMemberController::class, 'destroy'])->name('team-members.destroy');

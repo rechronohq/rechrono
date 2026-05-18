@@ -17,6 +17,7 @@ class TeamSettingsTest extends TestCase
     public function test_owner_can_view_team_settings(): void
     {
         $owner = $this->createTeamOwner();
+        $token = $owner->createToken('Existing integration');
 
         $this->actingAs($owner)
             ->get(route('team-settings.edit', $owner->team))
@@ -24,7 +25,10 @@ class TeamSettingsTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Team/Settings')
                 ->where('team.name', $owner->team->name)
-                ->has('members', 1));
+                ->has('members', 1)
+                ->where('apiTokens.0.id', $token->accessToken->id)
+                ->where('apiTokens.0.name', 'Existing integration')
+                ->where('teamSettingsRoutes.apiTokensStore', route('api-tokens.store', $owner->team)));
     }
 
     public function test_owner_can_update_team_name_and_slug(): void
@@ -216,6 +220,57 @@ class TeamSettingsTest extends TestCase
                 'slug' => 'settings',
             ])
             ->assertSessionHasErrors('slug');
+    }
+
+    public function test_member_can_create_api_token_from_team_settings(): void
+    {
+        $owner = $this->createTeamOwner();
+        $member = User::factory()->for($owner->team)->create();
+
+        $this->actingAs($member)
+            ->post(route('api-tokens.store', $member->team), [
+                'name' => 'Local integration',
+            ])
+            ->assertRedirect(route('team-settings.edit', $member->team))
+            ->assertSessionHas('status', 'api-token-created')
+            ->assertSessionHas('api_token_plain_text');
+
+        $this->assertDatabaseHas('personal_access_tokens', [
+            'tokenable_type' => User::class,
+            'tokenable_id' => $member->id,
+            'name' => 'Local integration',
+        ]);
+    }
+
+    public function test_member_can_revoke_their_own_api_token(): void
+    {
+        $owner = $this->createTeamOwner();
+        $member = User::factory()->for($owner->team)->create();
+        $token = $member->createToken('Old token');
+
+        $this->actingAs($member)
+            ->delete(route('api-tokens.destroy', [$member->team, $token->accessToken]))
+            ->assertRedirect(route('team-settings.edit', $member->team))
+            ->assertSessionHas('status', 'api-token-revoked');
+
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'id' => $token->accessToken->id,
+        ]);
+    }
+
+    public function test_member_cannot_revoke_another_users_api_token(): void
+    {
+        $owner = $this->createTeamOwner();
+        $member = User::factory()->for($owner->team)->create();
+        $token = $owner->createToken('Owner token');
+
+        $this->actingAs($member)
+            ->delete(route('api-tokens.destroy', [$member->team, $token->accessToken]))
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('personal_access_tokens', [
+            'id' => $token->accessToken->id,
+        ]);
     }
 
     protected function createTeamOwner(): User

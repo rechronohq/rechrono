@@ -8,7 +8,18 @@ function memberLabel(member) {
     return member.type === 'invitation' ? member.email : member.name;
 }
 
-export default function TeamSettings({ team, members, teamSettingsRoutes }) {
+function formatTokenTimestamp(value) {
+    if (!value) {
+        return 'Never';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
+}
+
+export default function TeamSettings({ team, members, apiTokens = [], newApiToken = null, teamSettingsRoutes }) {
     const { auth, flash } = usePage().props;
     const isOwner = auth.team?.is_owner ?? false;
     const teamForm = useForm({
@@ -20,11 +31,17 @@ export default function TeamSettings({ team, members, teamSettingsRoutes }) {
         email: '',
     });
 
+    const apiTokenForm = useForm({
+        name: '',
+    });
+
     const statusMessages = {
         'team-updated': 'Team settings saved.',
         'invite-sent': 'Invitation sent. They can create their account from the email link.',
         'invite-cancelled': 'Invitation cancelled.',
         'member-removed': 'Member removed.',
+        'api-token-created': 'API token created. Store it now; it will not be shown again.',
+        'api-token-revoked': 'API token revoked.',
     };
 
     return (
@@ -172,6 +189,88 @@ export default function TeamSettings({ team, members, teamSettingsRoutes }) {
                             </div>
                         </form>
                     ) : null}
+                </section>
+
+                <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
+                    <div className="mb-6">
+                        <h2 className="text-xl font-semibold tracking-[-0.03em] text-stone-950">API tokens</h2>
+                        <p className="mt-1 text-sm text-stone-500">
+                            Create personal tokens for API clients and integrations.
+                        </p>
+                    </div>
+
+                    {newApiToken ? (
+                        <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 p-4">
+                            <p className="text-sm font-medium text-amber-900">New API token</p>
+                            <p className="mt-1 text-sm text-amber-800">
+                                Store this token now. For security, it will only be shown once.
+                            </p>
+                            <Input
+                                readOnly
+                                value={newApiToken}
+                                className="mt-3 font-mono text-xs"
+                                aria-label="New API token"
+                            />
+                        </div>
+                    ) : null}
+
+                    <form
+                        className="space-y-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            apiTokenForm.post(teamSettingsRoutes.apiTokensStore, {
+                                preserveScroll: true,
+                                onSuccess: () => apiTokenForm.reset(),
+                            });
+                        }}
+                    >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                            <div className="min-w-0 flex-1 space-y-2">
+                                <label className="text-sm font-medium text-stone-700">Token name</label>
+                                <Input
+                                    value={apiTokenForm.data.name}
+                                    onChange={(event) => apiTokenForm.setData('name', event.target.value)}
+                                    placeholder="Zapier, local script, reporting client"
+                                />
+                                {apiTokenForm.errors.name ? <p className="text-sm text-rose-600">{apiTokenForm.errors.name}</p> : null}
+                            </div>
+                            <Button type="submit" disabled={apiTokenForm.processing}>
+                                Create token
+                            </Button>
+                        </div>
+                    </form>
+
+                    <ul className="mt-6 divide-y divide-stone-100 rounded-md border border-stone-200">
+                        {apiTokens.length > 0 ? apiTokens.map((token) => (
+                            <li key={token.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                                <div className="min-w-0">
+                                    <p className="truncate font-medium text-stone-950">{token.name}</p>
+                                    <p className="truncate text-sm text-stone-500">
+                                        Last used: {formatTokenTimestamp(token.last_used_at)}
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={apiTokenForm.processing}
+                                    onClick={() => {
+                                        if (!window.confirm(`Revoke ${token.name}?`)) {
+                                            return;
+                                        }
+
+                                        router.delete(token.destroy_url, {
+                                            preserveScroll: true,
+                                        });
+                                    }}
+                                >
+                                    Revoke
+                                </Button>
+                            </li>
+                        )) : (
+                            <li className="px-4 py-3 text-sm text-stone-500">No API tokens yet.</li>
+                        )}
+                    </ul>
                 </section>
             </div>
         </AppPage>

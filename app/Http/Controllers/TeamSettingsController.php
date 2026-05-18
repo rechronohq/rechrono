@@ -55,9 +55,24 @@ class TeamSettingsController extends Controller
                 'slug' => $team->slug,
             ],
             'members' => $members->concat($invitations)->sortBy('email')->values()->all(),
+            'apiTokens' => $request->user()
+                ? $request->user()->tokens()
+                    ->orderByDesc('created_at')
+                    ->get(['id', 'name', 'last_used_at', 'created_at'])
+                    ->map(fn ($token): array => [
+                        'id' => $token->id,
+                        'name' => $token->name,
+                        'last_used_at' => $token->last_used_at?->toJSON(),
+                        'created_at' => $token->created_at?->toJSON(),
+                        'destroy_url' => route('api-tokens.destroy', [$team, $token]),
+                    ])
+                    ->all()
+                : [],
+            'newApiToken' => $request->session()->get('api_token_plain_text'),
             'teamSettingsRoutes' => [
                 'teamSettingsUpdate' => route('team-settings.update', $team),
                 'teamInvitesStore' => route('team-invites.store', $team),
+                'apiTokensStore' => route('api-tokens.store', $team),
             ],
         ]);
     }
