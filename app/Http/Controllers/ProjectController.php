@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Projects\BulkProjectActionRequest;
+use App\Http\Requests\Projects\StoreProjectFromTemplateRequest;
+use App\Http\Requests\Projects\StoreProjectRequest;
+use App\Http\Requests\Projects\UpdateProjectRequest;
 use App\Models\Project;
 use App\Models\Team;
 use App\Services\ProjectService;
@@ -9,7 +13,6 @@ use App\Support\TimelinePayloadBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Validator;
 
 class ProjectController extends Controller
 {
@@ -18,19 +21,10 @@ class ProjectController extends Controller
         protected ProjectService $projectService,
     ) {}
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreProjectRequest $request): JsonResponse
     {
         $team = $this->currentTeam($request);
-        $validated = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'parent_id' => ['nullable', 'uuid', 'exists:projects,id'],
-            'selected_project_ids' => ['nullable', 'array'],
-            'selected_project_ids.*' => ['uuid', 'exists:projects,id'],
-            'selected_assignee_filters' => ['nullable', 'array'],
-            'selected_assignee_filters.*' => ['string'],
-            'show_weekends' => ['sometimes', 'boolean'],
-        ])->validate();
+        $validated = $request->validated();
 
         $project = $this->projectService->create($team, $validated);
         $allProjects = $this->allVisibleProjects($team);
@@ -53,20 +47,9 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function update(Request $request, Team $team, Project $project): JsonResponse
+    public function update(UpdateProjectRequest $request, Team $team, Project $project): JsonResponse
     {
-        $validated = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['sometimes', 'nullable', 'string'],
-            'parent_id' => ['nullable', 'uuid', 'exists:projects,id'],
-            'selected_project_ids' => ['nullable', 'array'],
-            'selected_project_ids.*' => ['uuid', 'exists:projects,id'],
-            'selected_assignee_filters' => ['nullable', 'array'],
-            'selected_assignee_filters.*' => ['string'],
-            'show_weekends' => ['sometimes', 'boolean'],
-        ])->validate();
-
-        $project = $this->projectService->update($team, $project, $validated);
+        $project = $this->projectService->update($team, $project, $request->validated());
 
         return response()->json([
             ...$this->timelinePayloadForRequest($request, $project),
@@ -91,21 +74,10 @@ class ProjectController extends Controller
         return response()->json($this->timelinePayloadForRequest($request, $project->fresh()));
     }
 
-    public function storeFromTemplate(Request $request): JsonResponse
+    public function storeFromTemplate(StoreProjectFromTemplateRequest $request): JsonResponse
     {
         $team = $this->currentTeam($request);
-        $validated = Validator::make($request->all(), [
-            'template_project_id' => ['required', 'uuid', 'exists:projects,id'],
-            'name' => ['required', 'string', 'max:255'],
-            'parent_id' => ['nullable', 'uuid', 'exists:projects,id'],
-            'selected_project_ids' => ['nullable', 'array'],
-            'selected_project_ids.*' => ['uuid', 'exists:projects,id'],
-            'selected_assignee_filters' => ['nullable', 'array'],
-            'selected_assignee_filters.*' => ['string'],
-            'show_weekends' => ['sometimes', 'boolean'],
-            'collapsed_project_ids' => ['nullable', 'array'],
-            'collapsed_project_ids.*' => ['string'],
-        ])->validate();
+        $validated = $request->validated();
 
         $project = $this->projectService->createFromTemplate($team, $validated);
         $allProjects = $this->allVisibleProjects($team);
@@ -135,17 +107,10 @@ class ProjectController extends Controller
         return response()->json($this->timelinePayloadForRequest($request));
     }
 
-    public function bulkAction(Request $request): JsonResponse
+    public function bulkAction(BulkProjectActionRequest $request): JsonResponse
     {
         $team = $this->currentTeam($request);
-        $validated = $request->validate([
-            'action' => ['required', 'in:archive,unarchive,change-parent,delete'],
-            'project_ids' => ['required', 'array', 'min:1'],
-            'project_ids.*' => ['uuid', 'exists:projects,id'],
-            'parent_id' => ['nullable', 'uuid', 'exists:projects,id'],
-        ]);
-
-        $this->projectService->bulkAction($team, $validated);
+        $this->projectService->bulkAction($team, $request->validated());
 
         return response()->json(['ok' => true]);
     }
