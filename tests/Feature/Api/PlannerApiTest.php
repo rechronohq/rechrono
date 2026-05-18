@@ -66,6 +66,39 @@ class PlannerApiTest extends TestCase
             ->assertJsonPath('data.tasks.0.id', $firstTask->id);
     }
 
+    public function test_user_can_create_update_and_delete_project(): void
+    {
+        $team = Team::factory()->create(['slug' => 'api-team']);
+        $user = User::factory()->for($team)->create();
+        Sanctum::actingAs($user);
+
+        $createResponse = $this
+            ->postJson(route('api.projects.store', $team), [
+                'name' => 'API-created project',
+                'description' => 'Created by a token client.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'API-created project')
+            ->assertJsonPath('data.description', 'Created by a token client.');
+
+        $project = Project::query()->findOrFail($createResponse->json('data.id'));
+
+        $this
+            ->patchJson(route('api.projects.update', [$team, $project]), [
+                'name' => 'Updated API project',
+                'description' => 'Updated by a token client.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Updated API project')
+            ->assertJsonPath('data.description', 'Updated by a token client.');
+
+        $this
+            ->deleteJson(route('api.projects.destroy', [$team, $project]))
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('projects', ['id' => $project->id]);
+    }
+
     public function test_user_cannot_read_another_team_project(): void
     {
         $firstTeam = Team::factory()->create(['slug' => 'first-api-team']);
