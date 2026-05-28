@@ -1,6 +1,7 @@
 import { Link, useForm } from '@inertiajs/react';
 
 import AuthLayout from '@/Layouts/AuthLayout';
+import GoogleAuthLink from '@/components/Auth/GoogleAuthLink';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -35,6 +36,14 @@ export default function Register() {
 
     return (
         <AuthLayout title="Create your account" subtitle="Choose your team URL and start a private Rechrono workspace.">
+            <GoogleAuthLink label="Sign up with Google" />
+
+            <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-[0.16em] text-stone-400">
+                <span className="h-px flex-1 bg-stone-200" />
+                or
+                <span className="h-px flex-1 bg-stone-200" />
+            </div>
+
             <form
                 className="space-y-5"
                 onSubmit={(event) => {

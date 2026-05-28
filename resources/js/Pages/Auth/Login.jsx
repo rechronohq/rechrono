@@ -1,6 +1,7 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
 
 import AuthLayout from '@/Layouts/AuthLayout';
+import GoogleAuthLink from '@/components/Auth/GoogleAuthLink';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -19,6 +20,14 @@ export default function Login() {
                     {flash.status}
                 </div>
             ) : null}
+
+            <GoogleAuthLink />
+
+            <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-[0.16em] text-stone-400">
+                <span className="h-px flex-1 bg-stone-200" />
+                or
+                <span className="h-px flex-1 bg-stone-200" />
+            </div>
 
             <form
                 className="space-y-5"
