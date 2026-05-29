@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
 export function ProjectsForm({
+    className = '',
     excludeProjectId = null,
     isSaving,
     onFieldChange,
@@ -24,7 +25,7 @@ export function ProjectsForm({
 
     return (
         <form
-            className="projects-form"
+            className={`projects-form ${className}`.trim()}
             onSubmit={(event) => {
                 event.preventDefault();
                 onSubmit();
@@ -115,20 +116,25 @@ export function ProjectsForm({
             </div>
 
             <div className="projects-form__footer">
-                {secondaryAction ?? (onCancel ? (
-                    <Button type="button" variant="ghost" onClick={onCancel} disabled={isSaving}>
-                        Cancel
+                <div className="projects-form__footer-secondary">
+                    {secondaryAction ?? <span />}
+                </div>
+                <div className="projects-form__footer-actions">
+                    {onCancel ? (
+                        <Button type="button" variant="ghost" onClick={onCancel} disabled={isSaving}>
+                            Cancel
+                        </Button>
+                    ) : null}
+                    <Button
+                        type="submit"
+                        disabled={
+                            isSaving
+                            || value.name.trim() === ''
+                        }
+                    >
+                        {submitLabel}
                     </Button>
-                ) : <span />)}
-                <Button
-                    type="submit"
-                    disabled={
-                        isSaving
-                        || value.name.trim() === ''
-                    }
-                >
-                    {submitLabel}
-                </Button>
+                </div>
             </div>
         </form>
     );

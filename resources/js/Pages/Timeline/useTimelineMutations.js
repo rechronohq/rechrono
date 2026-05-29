@@ -9,6 +9,7 @@ import {
     selectionUrl,
     taskUrl,
 } from './utils';
+import { defaultProjectForm, projectCreationRequest } from './projectDialogForm';
 
 export function useTimelineMutations({
     createTaskUrlTemplate,
@@ -149,36 +150,22 @@ export function useTimelineMutations({
             return;
         }
 
-        if (projectForm.mode === 'template' && !projectForm.template_project_id) {
-            return;
-        }
-
         setIsSaving(true);
 
         try {
-            const payload = await request(projectForm.mode === 'template' ? routes.projectsFromTemplate : routes.projectsStore, {
+            const projectRequest = projectCreationRequest({
+                form: projectForm,
+                routes,
+                timelineState: dataRef.current,
+            });
+            const payload = await request(projectRequest.url, {
                 method: 'POST',
-                body: JSON.stringify({
-                    name: projectForm.name.trim(),
-                    template_project_id: projectForm.mode === 'template' ? projectForm.template_project_id : null,
-                    start_date: projectForm.mode === 'template' ? projectForm.start_date : null,
-                    parent_id: projectForm.parent_id || null,
-                    selected_project_ids: dataRef.current.selected_project_ids,
-                    selected_assignee_filters: dataRef.current.selected_assignee_filters ?? [],
-                    show_weekends: dataRef.current.show_weekends ?? false,
-                    collapsed_project_ids: dataRef.current.collapsed_project_ids ?? [],
-                }),
+                body: JSON.stringify(projectRequest.body),
             });
 
             dataRef.current = payload;
             setData(payload);
-            setProjectForm({
-                mode: 'blank',
-                name: '',
-                parent_id: '',
-                template_project_id: '',
-                start_date: new Date().toISOString().slice(0, 10),
-            });
+            setProjectForm(defaultProjectForm());
             setProjectFormOpen(false);
             syncUrl(payload.selected_project_ids, payload.selected_assignee_filters ?? [], payload.collapsed_project_ids ?? [], { history: 'replace' });
         } finally {

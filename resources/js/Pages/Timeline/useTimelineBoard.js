@@ -11,19 +11,12 @@ import {
     selectableSidebarItems,
     toggleSidebarSelection,
 } from './sidebarSelection';
+import { defaultProjectForm } from './projectDialogForm';
 import { buildBars, buildDays, buildRows, request, selectionFromUrl } from './utils';
 import { useTimelineDrag } from './useTimelineDrag';
 import { useTimelineMutations } from './useTimelineMutations';
 
 export function useTimelineBoard({ activeTimelineView, timelineData, routes, createTaskUrlTemplate, duplicateTaskUrlTemplate, reorderTaskUrlTemplate, updateTaskUrlTemplate }) {
-    const defaultProjectForm = () => ({
-        mode: 'blank',
-        name: '',
-        parent_id: '',
-        template_project_id: '',
-        start_date: new Date().toISOString().slice(0, 10),
-    });
-
     const [data, setData] = useState(timelineData);
     const [drafts, setDrafts] = useState({});
     const [openComposerParentId, setOpenComposerParentId] = useState(null);
