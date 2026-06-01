@@ -32,6 +32,7 @@ class UpdateTeamRequest extends FormRequest
                 Rule::notIn(Team::reservedSlugs()),
                 Rule::unique(Team::class, 'slug')->ignore($team),
             ],
+            'time_tracking_enabled' => ['sometimes', 'boolean'],
         ];
     }
 

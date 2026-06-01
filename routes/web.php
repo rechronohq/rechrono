@@ -13,9 +13,12 @@ use App\Http\Controllers\ProjectTaskController;
 use App\Http\Controllers\TeamInviteController;
 use App\Http\Controllers\TeamMemberController;
 use App\Http\Controllers\TeamSettingsController;
+use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\TimelineDataController;
 use App\Http\Controllers\TimelinePageController;
 use App\Http\Controllers\TimelineViewController;
+use App\Http\Controllers\TimesheetPageController;
+use App\Http\Controllers\TimeTimerController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +36,7 @@ Route::middleware('auth')->group(function () {
         ...$request->query(),
     ]));
     Route::get('/imports', fn (Request $request) => redirect()->route('imports.index', $request->user()->team));
+    Route::get('/timesheet', fn (Request $request) => redirect()->route('timesheet.index', $request->user()->team));
     Route::get('/projects/new', fn (Request $request) => redirect()->route('projects.create', $request->user()->team));
     Route::get('/projects/{project}', function (Request $request, string $project) {
         $teamProject = $request->user()->team?->projects()->findOrFail($project);
@@ -54,6 +58,7 @@ Route::prefix('{team:slug}')
         Route::get('/tasks', TimelinePageController::class)->name('tasks');
         Route::get('/projects', ProjectsPageController::class)->name('projects.index');
         Route::get('/imports', ImportsPageController::class)->name('imports.index');
+        Route::get('/timesheet', TimesheetPageController::class)->name('timesheet.index');
         Route::get('/projects/new', ProjectCreatePageController::class)->name('projects.create');
         Route::get('/projects/{project}', ProjectDetailsPageController::class)->name('projects.show');
         Route::get('/projects/{project}/edit', ProjectEditPageController::class)->name('projects.edit');
@@ -86,6 +91,12 @@ Route::prefix('{team:slug}')
         Route::post('/settings/invites', [TeamInviteController::class, 'store'])->name('team-invites.store');
         Route::delete('/settings/invites/{invitation}', [TeamInviteController::class, 'destroy'])->name('team-invites.destroy');
         Route::delete('/settings/members/{user}', [TeamMemberController::class, 'destroy'])->name('team-members.destroy');
+        Route::get('/time/current', [TimeTimerController::class, 'current'])->name('time.current');
+        Route::post('/time/tasks/{task}/start', [TimeTimerController::class, 'start'])->withoutScopedBindings()->name('time.timer.start');
+        Route::post('/time/timer/stop', [TimeTimerController::class, 'stop'])->name('time.timer.stop');
+        Route::post('/time/entries', [TimeEntryController::class, 'store'])->name('time.entries.store');
+        Route::patch('/time/entries/{timeEntry}', [TimeEntryController::class, 'update'])->withoutScopedBindings()->name('time.entries.update');
+        Route::delete('/time/entries/{timeEntry}', [TimeEntryController::class, 'destroy'])->withoutScopedBindings()->name('time.entries.destroy');
     });
 
 require __DIR__.'/auth.php';

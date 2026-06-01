@@ -1,4 +1,4 @@
-import { FolderKanban, LayoutDashboard } from 'lucide-react';
+import { Clock, FolderKanban, LayoutDashboard } from 'lucide-react';
 
 export const primaryAppDefinitions = [
     {
@@ -14,6 +14,13 @@ export const primaryAppDefinitions = [
         icon: FolderKanban,
         group: 'management',
         href: (routes) => routes?.apps?.projects ?? routes?.projects?.index ?? routes?.projectsApp,
+    },
+    {
+        key: 'timesheet',
+        label: 'Timesheet',
+        icon: Clock,
+        group: 'management',
+        href: (routes) => routes?.apps?.timesheet,
     },
 ];
 
@@ -38,7 +45,8 @@ export function getAppChrome(routes, user, activeApp) {
         .map((definition) => ({
             ...definition,
             href: definition.href(routes),
-        }));
+        }))
+        .filter((definition) => Boolean(definition.href));
     const groups = primaryGroupDefinitions
         .map((group) => ({
             ...group,

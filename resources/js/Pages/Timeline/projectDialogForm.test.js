@@ -11,6 +11,7 @@ describe('project dialog form', () => {
         expect(defaultProjectForm()).toEqual({
             name: '',
             description: '',
+            budget_hours: '',
             parent_id: '',
             template_project_id: '',
             start_date: expect.any(String),
@@ -26,6 +27,7 @@ describe('project dialog form', () => {
             form: {
                 name: 'Website relaunch',
                 description: 'Internal launch notes',
+                budget_hours: '12.5',
                 parent_id: 'parent-1',
                 template_project_id: '',
                 start_date: '2026-05-28',
@@ -47,6 +49,7 @@ describe('project dialog form', () => {
             body: {
                 name: 'Website relaunch',
                 description: 'Internal launch notes',
+                budget_hours: 12.5,
                 template_project_id: null,
                 start_date: null,
                 parent_id: 'parent-1',
@@ -63,6 +66,7 @@ describe('project dialog form', () => {
             form: {
                 name: 'Campaign launch',
                 description: 'Ignored for template projects',
+                budget_hours: '99',
                 parent_id: '',
                 template_project_id: 'template-1',
                 start_date: '2026-05-28',
@@ -79,6 +83,7 @@ describe('project dialog form', () => {
             body: {
                 name: 'Campaign launch',
                 description: null,
+                budget_hours: null,
                 template_project_id: 'template-1',
                 start_date: '2026-05-28',
                 parent_id: null,

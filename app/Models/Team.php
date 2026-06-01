@@ -18,7 +18,15 @@ class Team extends Model
         'name',
         'slug',
         'owner_user_id',
+        'time_tracking_enabled',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'time_tracking_enabled' => 'boolean',
+        ];
+    }
 
     public function getRouteKeyName(): string
     {
@@ -53,6 +61,11 @@ class Team extends Model
     public function timelineViews(): HasMany
     {
         return $this->hasMany(TimelineView::class)->orderBy('name');
+    }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
     }
 
     public static function reservedSlugs(): array

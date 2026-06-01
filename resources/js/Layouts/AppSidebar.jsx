@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ChevronDown, LogOut, MoreHorizontal, Settings, UserCircle2 } from 'lucide-react';
+import { ChevronDown, Clock3, LogOut, MoreHorizontal, Settings, Square, UserCircle2 } from 'lucide-react';
 
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -12,12 +12,41 @@ import {
 import { request } from '@/lib/request';
 import { cn } from '@/lib/utils';
 
+function elapsedSecondsForTimer(entry) {
+    if (!entry?.is_running) {
+        return 0;
+    }
+
+    const startedAt = Date.parse(entry.started_at);
+
+    if (Number.isNaN(startedAt)) {
+        return entry.duration_seconds ?? 0;
+    }
+
+    return Math.max(entry.duration_seconds ?? 0, Math.floor((Date.now() - startedAt) / 1000));
+}
+
+function formatElapsedTime(totalSeconds) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
 export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryApp, activePrimaryLabel }) {
     const { props } = usePage();
     const { auth, routes } = props;
     const timelineViews = props.timelineViews ?? [];
     const activeTimelineViewId = props.activeTimelineViewId ?? null;
     const [menuOpen, setMenuOpen] = useState(false);
+    const [currentTimer, setCurrentTimer] = useState(null);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [isStoppingTimer, setIsStoppingTimer] = useState(false);
     const menuRef = useRef(null);
 
     async function renameTimelineView(view) {
@@ -64,6 +93,87 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
 
         return () => window.removeEventListener('pointerdown', close);
     }, []);
+
+    useEffect(() => {
+        if (!routes.time?.current) {
+            setCurrentTimer(null);
+            setElapsedSeconds(0);
+
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        async function fetchCurrentTimer() {
+            try {
+                const payload = await request(routes.time.current);
+
+                if (!cancelled) {
+                    const entry = payload.entry?.is_running ? payload.entry : null;
+                    setCurrentTimer(entry);
+                    setElapsedSeconds(elapsedSecondsForTimer(entry));
+                }
+            } catch {
+                if (!cancelled) {
+                    setCurrentTimer(null);
+                    setElapsedSeconds(0);
+                }
+            }
+        }
+
+        function handleTimerChange(event) {
+            const entry = event.detail?.entry?.is_running ? event.detail.entry : null;
+            setCurrentTimer(entry);
+            setElapsedSeconds(elapsedSecondsForTimer(entry));
+        }
+
+        fetchCurrentTimer();
+        window.addEventListener('rechrono:timer-change', handleTimerChange);
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener('rechrono:timer-change', handleTimerChange);
+        };
+    }, [routes.time?.current]);
+
+    useEffect(() => {
+        if (!currentTimer?.is_running) {
+            setElapsedSeconds(0);
+
+            return undefined;
+        }
+
+        setElapsedSeconds(elapsedSecondsForTimer(currentTimer));
+
+        const intervalId = window.setInterval(() => {
+            setElapsedSeconds(elapsedSecondsForTimer(currentTimer));
+        }, 1000);
+
+        return () => window.clearInterval(intervalId);
+    }, [currentTimer]);
+
+    async function stopCurrentTimer(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!routes.time?.stopTimer || isStoppingTimer) {
+            return;
+        }
+
+        setIsStoppingTimer(true);
+
+        try {
+            const payload = await request(routes.time.stopTimer, {
+                method: 'POST',
+            });
+            const entry = payload.entry?.is_running ? payload.entry : null;
+            setCurrentTimer(entry);
+            setElapsedSeconds(elapsedSecondsForTimer(entry));
+            window.dispatchEvent(new CustomEvent('rechrono:timer-change', { detail: { entry } }));
+        } finally {
+            setIsStoppingTimer(false);
+        }
+    }
 
     const timelineViewsSection = timelineViews.length > 0 ? (
         <div className="mt-4 border-t border-stone-200 pt-4">
@@ -199,6 +309,46 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
             </nav>
 
             <div data-testid="app-shell-sidebar-bottom" className="app-shell-sidebar-bottom">
+                {currentTimer?.is_running ? (
+                    <div
+                        data-testid="app-shell-current-timer"
+                        className="mb-3 rounded-md border border-blue-100 bg-blue-50/70 p-3 shadow-sm"
+                    >
+                        <div className="flex items-start justify-between gap-2">
+                            <Link
+                                href={routes.apps?.timesheet ?? routes.apps?.planner ?? routes.planner}
+                                className="min-w-0 flex-1"
+                                title={currentTimer.task_name}
+                            >
+                                <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-blue-600">
+                                    <Clock3 className="h-3.5 w-3.5" />
+                                    Running timer
+                                </span>
+                                <span className="mt-2 block truncate text-sm font-medium text-stone-950">
+                                    {currentTimer.task_name ?? 'Current task'}
+                                </span>
+                                <span className="mt-0.5 block truncate text-xs text-stone-500">
+                                    {currentTimer.project_name ?? 'No project'}
+                                </span>
+                            </Link>
+
+                            <button
+                                type="button"
+                                aria-label="Stop running timer"
+                                disabled={isStoppingTimer}
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-blue-100 bg-white text-blue-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 disabled:pointer-events-none disabled:opacity-50"
+                                onClick={stopCurrentTimer}
+                            >
+                                <Square className="h-3.5 w-3.5 fill-current" />
+                            </button>
+                        </div>
+
+                        <div className="mt-3 rounded-[6px] bg-white px-2.5 py-2 font-mono text-lg font-semibold tabular-nums text-stone-950 shadow-sm">
+                            {formatElapsedTime(elapsedSeconds)}
+                        </div>
+                    </div>
+                ) : null}
+
                 <div data-testid="app-shell-account" ref={menuRef} className="relative">
                     <button
                         type="button"

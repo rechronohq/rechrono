@@ -45,9 +45,10 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
     const [projectFormOpen, setProjectFormOpen] = useState(false);
     const [projectForm, setProjectForm] = useState(defaultProjectForm);
     const [projectModalProjectId, setProjectModalProjectId] = useState(null);
-    const [projectModalForm, setProjectModalForm] = useState({ name: '', description: '', parent_id: '' });
+    const [projectModalForm, setProjectModalForm] = useState({ name: '', description: '', budget_hours: '', parent_id: '' });
     const [taskModalTaskId, setTaskModalTaskId] = useState(null);
     const [taskModalForm, setTaskModalForm] = useState({
+        id: null,
         name: '',
         description: '',
         project_id: '',
@@ -64,6 +65,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         project_id: '',
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [currentTimer, setCurrentTimer] = useState(null);
     const dataRef = useRef(timelineData);
     const timelineDensity = useMemo(() => timelineDensityFor(timelineDensityKey), [timelineDensityKey]);
 
@@ -110,6 +112,42 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
     useEffect(() => {
         dataRef.current = data;
     }, [data]);
+
+    useEffect(() => {
+        if (!routes.time?.current) {
+            setCurrentTimer(null);
+
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        request(routes.time.current)
+            .then((payload) => {
+                if (!cancelled) {
+                    setCurrentTimer(payload.entry ?? null);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setCurrentTimer(null);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [routes.time?.current]);
+
+    useEffect(() => {
+        function handleTimerChange(event) {
+            setCurrentTimer(event.detail?.entry?.is_running ? event.detail.entry : null);
+        }
+
+        window.addEventListener('rechrono:timer-change', handleTimerChange);
+
+        return () => window.removeEventListener('rechrono:timer-change', handleTimerChange);
+    }, []);
 
     useEffect(() => {
         setSelectedSidebarItemIds((current) => current.filter((itemId) => selectableItemIds.includes(itemId)));
@@ -430,6 +468,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         setProjectModalForm({
             name: project.name,
             description: project.description ?? '',
+            budget_hours: project.budget_hours ?? '',
             parent_id: project.parent_id ?? '',
         });
     }
@@ -449,7 +488,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
 
     function closeProjectModal() {
         setProjectModalProjectId(null);
-        setProjectModalForm({ name: '', description: '', parent_id: '' });
+        setProjectModalForm({ name: '', description: '', budget_hours: '', parent_id: '' });
     }
 
     function openTaskModal(task) {
@@ -466,6 +505,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         closeGroupModal();
         setTaskModalTaskId(task.id);
         setTaskModalForm({
+            id: task.id,
             name: task.name,
             description: task.description ?? '',
             project_id: task.project_id,
@@ -480,6 +520,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
     function closeTaskModal() {
         setTaskModalTaskId(null);
         setTaskModalForm({
+            id: null,
             name: '',
             description: '',
             project_id: '',
@@ -618,6 +659,33 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         closeTaskModal();
     }
 
+    async function startTaskTimer(task) {
+        if (!routes.time?.startTimer || !task || task.kind === 'group') {
+            return;
+        }
+
+        const payload = await request(routes.time.startTimer.replace('__TASK__', task.id), {
+            method: 'POST',
+        });
+
+        setCurrentTimer(payload.entry ?? null);
+        window.dispatchEvent(new CustomEvent('rechrono:timer-change', { detail: { entry: payload.entry ?? null } }));
+    }
+
+    async function stopTaskTimer() {
+        if (!routes.time?.stopTimer) {
+            return;
+        }
+
+        const payload = await request(routes.time.stopTimer, {
+            method: 'POST',
+        });
+
+        const entry = payload.entry?.is_running ? payload.entry : null;
+        setCurrentTimer(entry);
+        window.dispatchEvent(new CustomEvent('rechrono:timer-change', { detail: { entry } }));
+    }
+
     async function submitProjectModal() {
         const project = data.projects.find((item) => item.id === projectModalProjectId);
         const nextName = projectModalForm.name.trim();
@@ -629,6 +697,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         await updateProject(project, {
             name: nextName,
             description: projectModalForm.description,
+            budget_hours: projectModalForm.budget_hours === '' ? null : Number(projectModalForm.budget_hours),
             parent_id: projectModalForm.parent_id || null,
         });
         closeProjectModal();
@@ -749,6 +818,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         focusedComposerParentId,
         hoveredTaskId,
         isSaving,
+        currentTimer,
         layout,
         loadSelection,
         markTaskCompletion,
@@ -827,6 +897,8 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         extendSidebarItemRange,
         duplicateTaskFromModal,
         duplicateProjectFromModal,
+        startTaskTimer,
+        stopTaskTimer,
         openTaskModal,
         openProjectModal,
         openProjectForm,

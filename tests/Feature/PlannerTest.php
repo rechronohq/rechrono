@@ -27,12 +27,15 @@ class PlannerTest extends TestCase
         $this->assertTrue(Schema::hasColumns('tasks', ['assignee_user_id']));
         $this->assertFalse(Schema::hasColumn('tasks', 'assignee_type'));
 
-        foreach (['clients', 'invoices', 'time_entries', 'billable_items', 'company_profiles'] as $table) {
+        foreach (['clients', 'invoices', 'billable_items', 'company_profiles'] as $table) {
             $this->assertFalse(Schema::hasTable($table));
         }
 
+        $this->assertTrue(Schema::hasTable('time_entries'));
+
         $this->assertTrue(Route::has('planner'));
         $this->assertTrue(Route::has('projects.index'));
+        $this->assertTrue(Route::has('timesheet.index'));
         $this->assertFalse(Route::has('clients.index'));
         $this->assertFalse(Route::has('timesheets'));
         $this->assertFalse(Route::has('invoices.index'));

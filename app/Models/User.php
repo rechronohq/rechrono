@@ -76,6 +76,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->hasMany(TimelineView::class)->orderBy('name');
     }
 
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
     public static function importedPassword(): string
     {
         return Str::random(64);

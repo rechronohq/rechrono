@@ -53,6 +53,7 @@ class TeamSettingsController extends Controller
             'team' => [
                 'name' => $team->name,
                 'slug' => $team->slug,
+                'time_tracking_enabled' => $team->time_tracking_enabled,
             ],
             'members' => $members->concat($invitations)->sortBy('email')->values()->all(),
             'apiTokens' => $request->user()
@@ -80,7 +81,10 @@ class TeamSettingsController extends Controller
 
     public function update(UpdateTeamRequest $request, Team $team): RedirectResponse
     {
-        $team->update($request->validated());
+        $validated = $request->validated();
+        $validated['time_tracking_enabled'] = $request->boolean('time_tracking_enabled');
+
+        $team->update($validated);
 
         return Redirect::route('team-settings.edit', $team)->with('status', 'team-updated');
     }

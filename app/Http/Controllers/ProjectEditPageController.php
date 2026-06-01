@@ -17,6 +17,7 @@ class ProjectEditPageController extends Controller
                 'id' => $project->id,
                 'name' => $project->name,
                 'description' => $project->description,
+                'budget_hours' => $project->budget_hours === null ? null : (float) $project->budget_hours,
                 'parent_id' => $project->parent_id,
                 'show_url' => route('projects.show', [$team, $project]),
             ],
