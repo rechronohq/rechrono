@@ -142,11 +142,21 @@ class TimeTrackingTest extends TestCase
             ->postJson(route('time.entries.store', $member->team), [
                 'task_id' => $task->id,
                 'date' => '2026-05-26',
-                'hours' => 1.5,
-                'notes' => 'Initial work',
+                'start_time' => '09:15',
+                'end_time' => '10:45',
             ])
             ->assertCreated()
-            ->assertJsonPath('entry.duration_seconds', 5400);
+            ->assertJsonPath('entry.duration_seconds', 5400)
+            ->assertJsonPath('entry.started_time', '09:15')
+            ->assertJsonPath('entry.ended_time', '10:45');
+
+        $this->assertDatabaseHas('time_entries', [
+            'task_id' => $task->id,
+            'user_id' => $member->id,
+            'started_at' => '2026-05-26 09:15:00',
+            'ended_at' => '2026-05-26 10:45:00',
+            'duration_seconds' => 5400,
+        ]);
 
         $entryId = DB::table('time_entries')->where('user_id', $member->id)->value('id');
 
@@ -154,18 +164,26 @@ class TimeTrackingTest extends TestCase
             ->patchJson(route('time.entries.update', [$member->team, $entryId]), [
                 'task_id' => $task->id,
                 'date' => '2026-05-26',
-                'hours' => 2,
-                'notes' => 'Corrected work',
+                'start_time' => '10:00',
+                'end_time' => '12:00',
             ])
             ->assertOk()
-            ->assertJsonPath('entry.duration_seconds', 7200);
+            ->assertJsonPath('entry.duration_seconds', 7200)
+            ->assertJsonPath('entry.started_time', '10:00')
+            ->assertJsonPath('entry.ended_time', '12:00');
 
         $this->actingAs($member)
-            ->get(route('timesheet.index', [$member->team, 'week' => '2026-05-25']))
+            ->get(route('timesheet.index', [$member->team, 'date' => '2026-05-26', 'view' => 'day']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Timesheet/Index')
                 ->where('timesheet.can_view_team', false)
+                ->where('timesheet.view', 'day')
+                ->where('timesheet.selected_date', '2026-05-26')
+                ->where('timesheet.day_entries.0.task_name', 'Tracked task')
+                ->where('timesheet.day_entries.0.started_time', '10:00')
+                ->where('timesheet.day_entries.0.ended_time', '12:00')
+                ->where('timesheet.day_entries.0.duration_hours', fn ($value): bool => (float) $value === 2.0)
                 ->where('timesheet.rows.0.task_name', 'Tracked task')
                 ->where('timesheet.rows.0.entries.2026-05-26.hours', fn ($value): bool => (float) $value === 2.0));
 
@@ -177,6 +195,23 @@ class TimeTrackingTest extends TestCase
                 ->where('timesheet.can_view_team', true)
                 ->where('timesheet.rows.0.user_name', 'Member User')
                 ->where('timesheet.totals.total_hours', fn ($value): bool => (float) $value === 2.0));
+    }
+
+    public function test_manual_entries_reject_end_times_that_are_not_after_start_times(): void
+    {
+        $owner = $this->createTeamOwner(['time_tracking_enabled' => true]);
+        $project = Project::factory()->for($owner->team)->create();
+        $task = Task::factory()->for($project)->create();
+
+        $this->actingAs($owner)
+            ->postJson(route('time.entries.store', $owner->team), [
+                'task_id' => $task->id,
+                'date' => '2026-05-26',
+                'start_time' => '13:00',
+                'end_time' => '12:59',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['end_time']);
     }
 
     public function test_project_budget_and_actual_time_are_exposed_when_enabled(): void

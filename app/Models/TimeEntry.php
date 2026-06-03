@@ -83,9 +83,12 @@ class TimeEntry extends Model
             'user_name' => $this->user?->name,
             'started_at' => $this->started_at?->toJSON(),
             'ended_at' => $this->ended_at?->toJSON(),
+            'date' => $this->started_at?->toDateString(),
+            'started_time' => $this->started_at?->format('H:i'),
+            'ended_time' => $this->ended_at?->format('H:i'),
             'duration_seconds' => $this->secondsAt($now),
+            'duration_hours' => round($this->secondsAt($now) / 3600, 2),
             'hours' => round($this->secondsAt($now) / 3600, 2),
-            'notes' => $this->notes,
             'is_running' => $this->isRunning(),
         ];
     }

@@ -53,8 +53,8 @@ class TimeEntryController extends Controller
                     ->where('team_id', $team->id);
             }))],
             'date' => ['required', 'date'],
-            'hours' => ['required', 'numeric', 'min:0.01', 'max:24'],
-            'notes' => ['nullable', 'string'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
         ]);
     }
 }

@@ -16,8 +16,12 @@ class TimesheetPageController extends Controller
     {
         abort_unless($team->time_tracking_enabled, 404);
 
-        $weekStart = CarbonImmutable::parse($request->query('week', now()->toDateString()))->startOfWeek();
+        $view = $request->query('view') === 'week' ? 'week' : 'day';
+        $selectedDate = CarbonImmutable::parse($request->query('date', $request->query('week', now()->toDateString())));
+        $weekStart = CarbonImmutable::parse($request->query('week', $selectedDate->toDateString()))->startOfWeek();
         $weekEnd = $weekStart->addDays(6)->endOfDay();
+        $dayStart = $selectedDate->startOfDay();
+        $dayEnd = $selectedDate->endOfDay();
         $user = $request->user();
         $canViewTeam = $team->owner_user_id === $user->id;
         $days = collect(range(0, 6))
@@ -28,7 +32,14 @@ class TimesheetPageController extends Controller
             ->with(['project', 'task', 'user'])
             ->where('team_id', $team->id)
             ->whereBetween('started_at', [$weekStart, $weekEnd])
-            ->whereNotNull('ended_at')
+            ->when(! $canViewTeam, fn ($query) => $query->where('user_id', $user->id))
+            ->orderBy('started_at')
+            ->get();
+
+        $dayEntries = TimeEntry::query()
+            ->with(['project', 'task', 'user'])
+            ->where('team_id', $team->id)
+            ->whereBetween('started_at', [$dayStart, $dayEnd])
             ->when(! $canViewTeam, fn ($query) => $query->where('user_id', $user->id))
             ->orderBy('started_at')
             ->get();
@@ -41,18 +52,16 @@ class TimesheetPageController extends Controller
                 $cells = collect($days)->mapWithKeys(fn (string $day): array => [$day => [
                     'entry_id' => null,
                     'hours' => 0.0,
-                    'notes' => '',
                 ]])->all();
 
                 foreach ($rowEntries->groupBy(fn (TimeEntry $entry): string => $entry->started_at->toDateString()) as $day => $dayEntries) {
-                    $seconds = $dayEntries->sum('duration_seconds');
+                    $seconds = $dayEntries->sum(fn (TimeEntry $entry): int => $entry->secondsAt());
                     /** @var TimeEntry $dayFirst */
                     $dayFirst = $dayEntries->first();
 
                     $cells[$day] = [
                         'entry_id' => $dayFirst->id,
                         'hours' => round($seconds / 3600, 2),
-                        'notes' => $dayFirst->notes ?? '',
                     ];
                 }
 
@@ -65,7 +74,7 @@ class TimesheetPageController extends Controller
                     'task_id' => $first->task_id,
                     'task_name' => $first->task?->name,
                     'entries' => $cells,
-                    'total_hours' => round($rowEntries->sum('duration_seconds') / 3600, 2),
+                    'total_hours' => round($rowEntries->sum(fn (TimeEntry $entry): int => $entry->secondsAt()) / 3600, 2),
                 ];
             })
             ->sortBy([['project_name', 'asc'], ['task_name', 'asc'], ['user_name', 'asc']])
@@ -75,21 +84,35 @@ class TimesheetPageController extends Controller
         $dayTotals = collect($days)->mapWithKeys(function (string $day) use ($entries): array {
             $seconds = $entries
                 ->filter(fn (TimeEntry $entry): bool => $entry->started_at->toDateString() === $day)
-                ->sum('duration_seconds');
+                ->sum(fn (TimeEntry $entry): int => $entry->secondsAt());
 
             return [$day => round($seconds / 3600, 2)];
         })->all();
 
         return Inertia::render('Timesheet/Index', [
             'timesheet' => [
+                'view' => $view,
                 'week_start' => $weekStart->toDateString(),
-                'previous_week_url' => route('timesheet.index', [$team, 'week' => $weekStart->subWeek()->toDateString()]),
-                'next_week_url' => route('timesheet.index', [$team, 'week' => $weekStart->addWeek()->toDateString()]),
+                'selected_date' => $selectedDate->toDateString(),
+                'previous_day_url' => route('timesheet.index', [$team, 'view' => 'day', 'date' => $selectedDate->subDay()->toDateString()]),
+                'next_day_url' => route('timesheet.index', [$team, 'view' => 'day', 'date' => $selectedDate->addDay()->toDateString()]),
+                'today_url' => route('timesheet.index', [$team, 'view' => 'day', 'date' => now()->toDateString()]),
+                'day_url' => route('timesheet.index', [$team, 'view' => 'day', 'date' => '__DATE__']),
+                'week_url' => route('timesheet.index', [$team, 'view' => 'week', 'week' => $weekStart->toDateString()]),
+                'previous_week_url' => route('timesheet.index', [$team, 'view' => 'week', 'week' => $weekStart->subWeek()->toDateString()]),
+                'next_week_url' => route('timesheet.index', [$team, 'view' => 'week', 'week' => $weekStart->addWeek()->toDateString()]),
                 'days' => $days,
+                'day_entries' => $dayEntries
+                    ->map(fn (TimeEntry $entry): array => [
+                        ...$entry->toPayload(),
+                        'can_edit' => $entry->user_id === $user->id,
+                    ])
+                    ->all(),
                 'rows' => $rows,
                 'totals' => [
                     'days' => $dayTotals,
-                    'total_hours' => round($entries->sum('duration_seconds') / 3600, 2),
+                    'day_hours' => round($dayEntries->sum(fn (TimeEntry $entry): int => $entry->secondsAt()) / 3600, 2),
+                    'total_hours' => round($entries->sum(fn (TimeEntry $entry): int => $entry->secondsAt()) / 3600, 2),
                 ],
                 'can_view_team' => $canViewTeam,
                 'task_options' => $this->taskOptions($team),

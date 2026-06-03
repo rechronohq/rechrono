@@ -91,6 +91,13 @@ export function summarizeTaskGroups(taskGroups, fallbackSummary) {
     };
 }
 
+export function formatTaskCompletionSummary(summary) {
+    const completed = Number(summary?.completed ?? 0);
+    const total = Number(summary?.total ?? 0);
+
+    return `${Number.isFinite(completed) ? completed : 0}/${Number.isFinite(total) ? total : 0}`;
+}
+
 export function taskFilters(taskGroups, currentUserId) {
     const tasks = projectTasks(taskGroups);
 

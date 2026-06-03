@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
     filterTaskGroups,
+    formatTaskCompletionSummary,
     groupTasksByTimelineGroup,
     selectedTaskSelectionActions,
     summarizeTaskGroups,
@@ -28,6 +29,11 @@ describe('project task view helpers', () => {
             open: 1,
             groups: 1,
         });
+    });
+
+    test('formats task completion as completed over total', () => {
+        expect(formatTaskCompletionSummary({ completed: 5, total: 7 })).toBe('5/7');
+        expect(formatTaskCompletionSummary({ completed: null, total: undefined })).toBe('0/0');
     });
 
     test('keeps timeline group sections visible when filtering person groups', () => {

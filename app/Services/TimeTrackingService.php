@@ -69,8 +69,7 @@ class TimeTrackingService
     {
         abort_unless($team->time_tracking_enabled, 404);
         $task = $this->teamTask($team, $validated['task_id']);
-        $startedAt = CarbonImmutable::parse($validated['date'])->startOfDay();
-        $durationSeconds = $this->secondsFromHours($validated['hours']);
+        [$startedAt, $endedAt, $durationSeconds] = $this->manualEntryTimeRange($validated);
 
         return TimeEntry::query()->create([
             'team_id' => $team->id,
@@ -78,9 +77,8 @@ class TimeTrackingService
             'task_id' => $task->id,
             'user_id' => $user->id,
             'started_at' => $startedAt,
-            'ended_at' => $startedAt->addSeconds($durationSeconds),
+            'ended_at' => $endedAt,
             'duration_seconds' => $durationSeconds,
-            'notes' => $validated['notes'] ?? null,
         ])->fresh(['project', 'task', 'user']);
     }
 
@@ -89,16 +87,14 @@ class TimeTrackingService
         abort_unless($team->time_tracking_enabled, 404);
         $this->authorizeEntryAccess($team, $user, $entry, mutate: true);
         $task = $this->teamTask($team, $validated['task_id']);
-        $startedAt = CarbonImmutable::parse($validated['date'])->startOfDay();
-        $durationSeconds = $this->secondsFromHours($validated['hours']);
+        [$startedAt, $endedAt, $durationSeconds] = $this->manualEntryTimeRange($validated);
 
         $entry->update([
             'project_id' => $task->project_id,
             'task_id' => $task->id,
             'started_at' => $startedAt,
-            'ended_at' => $startedAt->addSeconds($durationSeconds),
+            'ended_at' => $endedAt,
             'duration_seconds' => $durationSeconds,
-            'notes' => $validated['notes'] ?? null,
         ]);
 
         return $entry->fresh(['project', 'task', 'user']);
@@ -138,8 +134,24 @@ class TimeTrackingService
         return $task;
     }
 
-    protected function secondsFromHours(mixed $hours): int
+    protected function manualEntryTimeRange(array $validated): array
     {
-        return max(1, (int) round(((float) $hours) * 3600));
+        $timezone = config('app.timezone');
+        $startedAt = CarbonImmutable::createFromFormat(
+            'Y-m-d H:i',
+            "{$validated['date']} {$validated['start_time']}",
+            $timezone,
+        );
+        $endedAt = CarbonImmutable::createFromFormat(
+            'Y-m-d H:i',
+            "{$validated['date']} {$validated['end_time']}",
+            $timezone,
+        );
+
+        return [
+            $startedAt,
+            $endedAt,
+            max(1, (int) $startedAt->diffInSeconds($endedAt)),
+        ];
     }
 }
