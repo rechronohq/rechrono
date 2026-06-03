@@ -214,6 +214,54 @@ class TimeTrackingTest extends TestCase
             ->assertJsonValidationErrors(['end_time']);
     }
 
+    public function test_timesheet_task_options_prioritize_user_recent_tasks(): void
+    {
+        $owner = $this->createTeamOwner(['time_tracking_enabled' => true]);
+        $project = Project::factory()->for($owner->team)->create(['name' => 'Planning Board']);
+        $olderTask = Task::factory()->for($project)->create(['name' => 'Older task']);
+        $recentTask = Task::factory()->for($project)->create(['name' => 'Recent task']);
+        $unusedTask = Task::factory()->for($project)->create(['name' => 'Unused task']);
+
+        DB::table('time_entries')->insert([
+            [
+                'id' => (string) Str::uuid(),
+                'team_id' => $owner->team_id,
+                'project_id' => $project->id,
+                'task_id' => $olderTask->id,
+                'user_id' => $owner->id,
+                'started_at' => '2026-05-25 09:00:00',
+                'ended_at' => '2026-05-25 10:00:00',
+                'duration_seconds' => 3600,
+                'notes' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => (string) Str::uuid(),
+                'team_id' => $owner->team_id,
+                'project_id' => $project->id,
+                'task_id' => $recentTask->id,
+                'user_id' => $owner->id,
+                'started_at' => '2026-05-26 09:00:00',
+                'ended_at' => '2026-05-26 10:00:00',
+                'duration_seconds' => 3600,
+                'notes' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('timesheet.index', [$owner->team, 'date' => '2026-05-27', 'view' => 'day']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('timesheet.default_task_id', $recentTask->id)
+                ->where('timesheet.task_options.0.id', $recentTask->id)
+                ->where('timesheet.task_options.0.last_tracked_at', '2026-05-26T13:00:00.000000Z')
+                ->where('timesheet.task_options.1.id', $olderTask->id)
+                ->where('timesheet.task_options.2.id', $unusedTask->id));
+    }
+
     public function test_project_budget_and_actual_time_are_exposed_when_enabled(): void
     {
         $owner = $this->createTeamOwner(['time_tracking_enabled' => true]);

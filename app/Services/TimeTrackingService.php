@@ -68,17 +68,11 @@ class TimeTrackingService
     public function createManualEntry(Team $team, User $user, array $validated): TimeEntry
     {
         abort_unless($team->time_tracking_enabled, 404);
-        $task = $this->teamTask($team, $validated['task_id']);
-        [$startedAt, $endedAt, $durationSeconds] = $this->manualEntryTimeRange($validated);
 
         return TimeEntry::query()->create([
             'team_id' => $team->id,
-            'project_id' => $task->project_id,
-            'task_id' => $task->id,
             'user_id' => $user->id,
-            'started_at' => $startedAt,
-            'ended_at' => $endedAt,
-            'duration_seconds' => $durationSeconds,
+            ...$this->manualEntryAttributes($team, $validated),
         ])->fresh(['project', 'task', 'user']);
     }
 
@@ -86,16 +80,8 @@ class TimeTrackingService
     {
         abort_unless($team->time_tracking_enabled, 404);
         $this->authorizeEntryAccess($team, $user, $entry, mutate: true);
-        $task = $this->teamTask($team, $validated['task_id']);
-        [$startedAt, $endedAt, $durationSeconds] = $this->manualEntryTimeRange($validated);
 
-        $entry->update([
-            'project_id' => $task->project_id,
-            'task_id' => $task->id,
-            'started_at' => $startedAt,
-            'ended_at' => $endedAt,
-            'duration_seconds' => $durationSeconds,
-        ]);
+        $entry->update($this->manualEntryAttributes($team, $validated));
 
         return $entry->fresh(['project', 'task', 'user']);
     }
@@ -132,6 +118,23 @@ class TimeTrackingService
         abort_unless($task->isTask(), 422, 'Time can only be tracked against tasks.');
 
         return $task;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function manualEntryAttributes(Team $team, array $validated): array
+    {
+        $task = $this->teamTask($team, $validated['task_id']);
+        [$startedAt, $endedAt, $durationSeconds] = $this->manualEntryTimeRange($validated);
+
+        return [
+            'project_id' => $task->project_id,
+            'task_id' => $task->id,
+            'started_at' => $startedAt,
+            'ended_at' => $endedAt,
+            'duration_seconds' => $durationSeconds,
+        ];
     }
 
     protected function manualEntryTimeRange(array $validated): array

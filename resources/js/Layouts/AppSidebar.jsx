@@ -10,6 +10,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { request } from '@/lib/request';
+import { fetchCurrentTimer as fetchTimerRequest, stopCurrentTimer as stopTimerRequest } from '@/lib/timeTimer';
 import { cn } from '@/lib/utils';
 
 function elapsedSecondsForTimer(entry) {
@@ -106,10 +107,9 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
 
         async function fetchCurrentTimer() {
             try {
-                const payload = await request(routes.time.current);
+                const entry = await fetchTimerRequest(routes);
 
                 if (!cancelled) {
-                    const entry = payload.entry?.is_running ? payload.entry : null;
                     setCurrentTimer(entry);
                     setElapsedSeconds(elapsedSecondsForTimer(entry));
                 }
@@ -163,13 +163,9 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
         setIsStoppingTimer(true);
 
         try {
-            const payload = await request(routes.time.stopTimer, {
-                method: 'POST',
-            });
-            const entry = payload.entry?.is_running ? payload.entry : null;
+            const entry = await stopTimerRequest(routes);
             setCurrentTimer(entry);
             setElapsedSeconds(elapsedSecondsForTimer(entry));
-            window.dispatchEvent(new CustomEvent('rechrono:timer-change', { detail: { entry } }));
         } finally {
             setIsStoppingTimer(false);
         }

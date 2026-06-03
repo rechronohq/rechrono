@@ -15,6 +15,7 @@ import { defaultProjectForm } from './projectDialogForm';
 import { buildBars, buildDays, buildRows, request, selectionFromUrl } from './utils';
 import { useTimelineDrag } from './useTimelineDrag';
 import { useTimelineMutations } from './useTimelineMutations';
+import { startTaskTimer as startTimerRequest, stopCurrentTimer } from '@/lib/timeTimer';
 
 export function useTimelineBoard({ activeTimelineView, timelineData, routes, createTaskUrlTemplate, duplicateTaskUrlTemplate, reorderTaskUrlTemplate, updateTaskUrlTemplate }) {
     const [data, setData] = useState(timelineData);
@@ -664,12 +665,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
             return;
         }
 
-        const payload = await request(routes.time.startTimer.replace('__TASK__', task.id), {
-            method: 'POST',
-        });
-
-        setCurrentTimer(payload.entry ?? null);
-        window.dispatchEvent(new CustomEvent('rechrono:timer-change', { detail: { entry: payload.entry ?? null } }));
+        setCurrentTimer(await startTimerRequest(routes, task.id));
     }
 
     async function stopTaskTimer() {
@@ -677,13 +673,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
             return;
         }
 
-        const payload = await request(routes.time.stopTimer, {
-            method: 'POST',
-        });
-
-        const entry = payload.entry?.is_running ? payload.entry : null;
-        setCurrentTimer(entry);
-        window.dispatchEvent(new CustomEvent('rechrono:timer-change', { detail: { entry } }));
+        setCurrentTimer(await stopCurrentTimer(routes));
     }
 
     async function submitProjectModal() {

@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\TimeEntries\UpsertTimeEntryRequest;
 use App\Models\Team;
 use App\Models\TimeEntry;
 use App\Services\TimeTrackingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class TimeEntryController extends Controller
 {
@@ -15,18 +15,18 @@ class TimeEntryController extends Controller
         protected TimeTrackingService $timeTrackingService,
     ) {}
 
-    public function store(Request $request, Team $team): JsonResponse
+    public function store(UpsertTimeEntryRequest $request, Team $team): JsonResponse
     {
-        $entry = $this->timeTrackingService->createManualEntry($team, $request->user(), $this->validated($request));
+        $entry = $this->timeTrackingService->createManualEntry($team, $request->user(), $request->validated());
 
         return response()->json([
             'entry' => $entry->toPayload(),
         ], 201);
     }
 
-    public function update(Request $request, Team $team, TimeEntry $timeEntry): JsonResponse
+    public function update(UpsertTimeEntryRequest $request, Team $team, TimeEntry $timeEntry): JsonResponse
     {
-        $entry = $this->timeTrackingService->updateManualEntry($team, $request->user(), $timeEntry, $this->validated($request));
+        $entry = $this->timeTrackingService->updateManualEntry($team, $request->user(), $timeEntry, $request->validated());
 
         return response()->json([
             'entry' => $entry->toPayload(),
@@ -40,21 +40,4 @@ class TimeEntryController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    protected function validated(Request $request): array
-    {
-        /** @var Team $team */
-        $team = $request->route('team');
-
-        return $request->validate([
-            'task_id' => ['required', 'uuid', Rule::exists('tasks', 'id')->where(fn ($query) => $query->whereIn('project_id', function ($subquery) use ($team): void {
-                $subquery
-                    ->select('id')
-                    ->from('projects')
-                    ->where('team_id', $team->id);
-            }))],
-            'date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-        ]);
-    }
 }
