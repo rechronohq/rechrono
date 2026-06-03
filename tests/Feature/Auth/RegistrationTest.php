@@ -49,7 +49,7 @@ class RegistrationTest extends TestCase
             ->count());
         $this->assertDatabaseHas('projects', [
             'team_id' => $team->id,
-            'name' => 'Default Planning Board',
+            'name' => 'Demo Workspace',
         ]);
         Notification::assertSentTo($user, VerifyEmail::class);
         $response->assertRedirect(route('planner', $team, absolute: false));

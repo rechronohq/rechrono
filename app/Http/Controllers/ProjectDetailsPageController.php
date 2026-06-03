@@ -30,6 +30,10 @@ class ProjectDetailsPageController extends Controller
                 'id' => $project->id,
                 'name' => $project->name,
                 'description' => $project->description,
+                'budget_hours' => $project->budget_hours === null ? null : (float) $project->budget_hours,
+                'actual_hours' => $team->time_tracking_enabled
+                    ? round($project->timeEntries()->whereNotNull('ended_at')->sum('duration_seconds') / 3600, 2)
+                    : null,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'is_active' => $project->is_active,

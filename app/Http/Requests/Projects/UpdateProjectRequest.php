@@ -22,6 +22,7 @@ class UpdateProjectRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
+            'budget_hours' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999.99'],
             'parent_id' => ['nullable', 'uuid', $this->teamProjectRule()],
             'selected_project_ids' => ['nullable', 'array'],
             'selected_project_ids.*' => ['uuid', $this->teamProjectRule()],

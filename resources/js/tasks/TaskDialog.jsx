@@ -1,4 +1,5 @@
 import React from 'react';
+import { Play, Square } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,12 +18,15 @@ import { Textarea } from '@/components/ui/textarea';
 export function TaskDialog({
     assigneeOptions = [],
     assigneeValueField = 'assignee_user_id',
+    currentTimer = null,
     disabled = false,
     mode = 'edit',
     onClose,
     onDelete,
     onDuplicate,
     onFieldChange,
+    onStartTimer,
+    onStopTimer,
     onSubmit,
     open,
     parentTaskOptions = [],
@@ -36,6 +40,8 @@ export function TaskDialog({
 }) {
     const isCreate = mode === 'create';
     const fieldIdPrefix = showProject ? 'timeline-task' : 'project-task';
+    const isTimerRunning = currentTimer?.task_id === value.id && currentTimer?.is_running;
+    const canTrackTime = !isCreate && value.id && (onStartTimer || onStopTimer);
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -171,6 +177,32 @@ export function TaskDialog({
                                 disabled={disabled}
                             />
                         </div>
+
+                        {canTrackTime ? (
+                            <div className="flex items-center justify-between gap-4 border-t border-stone-200 pt-5">
+                                <div>
+                                    <p className="text-sm font-medium text-stone-800">Tracked time</p>
+                                    <p className="mt-0.5 text-sm text-stone-500">
+                                        {isTimerRunning ? 'Timer running on this task.' : 'Start a timer for this task.'}
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant={isTimerRunning ? 'default' : 'outline'}
+                                    onClick={() => {
+                                        if (isTimerRunning) {
+                                            onStopTimer?.();
+                                        } else {
+                                            onStartTimer?.(value);
+                                        }
+                                    }}
+                                    disabled={disabled}
+                                >
+                                    {isTimerRunning ? <Square className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
+                                    {isTimerRunning ? 'Stop timer' : 'Start timer'}
+                                </Button>
+                            </div>
+                        ) : null}
                     </div>
 
                     <DialogFooter className="justify-between border-t border-stone-200 bg-stone-50 px-6 py-4">

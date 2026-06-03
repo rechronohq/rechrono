@@ -15,6 +15,7 @@ export default function ProjectsCreate({ projects, templateProjects = [] }) {
         name: '',
         parent_id: '',
         description: '',
+        budget_hours: '',
         template_project_id: '',
     });
 
@@ -39,6 +40,7 @@ export default function ProjectsCreate({ projects, templateProjects = [] }) {
                 body: JSON.stringify({
                     name: form.name.trim(),
                     description: usesTemplate ? null : form.description.trim() || null,
+                    budget_hours: usesTemplate || form.budget_hours === '' ? null : Number(form.budget_hours),
                     parent_id: form.parent_id || null,
                     template_project_id: usesTemplate ? form.template_project_id : null,
                 }),

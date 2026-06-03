@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Project;
 use App\Models\Team;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ProjectsTablePayloadBuilder
 {
@@ -17,6 +18,14 @@ class ProjectsTablePayloadBuilder
         $team ??= $projects->first()?->team;
         $projects = Project::orderedHierarchy($projects);
         $dateRanges = $this->projectDateRangeResolver->forCollection($projects);
+        $projectActualSeconds = $team?->time_tracking_enabled
+            ? DB::table('time_entries')
+                ->select('project_id', DB::raw('sum(duration_seconds) as seconds'))
+                ->where('team_id', $team->id)
+                ->whereNotNull('ended_at')
+                ->groupBy('project_id')
+                ->pluck('seconds', 'project_id')
+            : collect();
 
         return [
             'status_filter' => $statusFilter,
@@ -35,9 +44,10 @@ class ProjectsTablePayloadBuilder
                 ])
                 ->values()
                 ->all(),
-            'rows' => $projects->map(function (Project $project) use ($dateRanges, $team): array {
+            'rows' => $projects->map(function (Project $project) use ($dateRanges, $team, $projectActualSeconds): array {
                 $routeTeam = $team ?? $project->team;
                 [$startDate, $endDate] = $dateRanges->get($project->id, [null, null]);
+                $actualSeconds = (int) ($projectActualSeconds[$project->id] ?? 0);
 
                 return [
                     'id' => $project->id,
@@ -45,6 +55,8 @@ class ProjectsTablePayloadBuilder
                     'start_date' => $startDate,
                     'end_date' => $endDate,
                     'parent_id' => $project->parent_id,
+                    'budget_hours' => $team?->time_tracking_enabled ? ($project->budget_hours === null ? null : (float) $project->budget_hours) : null,
+                    'actual_hours' => $team?->time_tracking_enabled ? round($actualSeconds / 3600, 2) : null,
                     'depth' => $project->parent_id ? 1 : 0,
                     'is_active' => $project->is_active,
                     'is_template' => $project->is_template,

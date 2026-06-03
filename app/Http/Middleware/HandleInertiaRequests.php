@@ -30,6 +30,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $team->name,
                     'slug' => $team->slug,
                     'is_owner' => $team->owner_user_id === $request->user()?->id,
+                    'time_tracking_enabled' => $team->time_tracking_enabled,
                 ] : null,
             ],
             'flash' => [
@@ -41,7 +42,20 @@ class HandleInertiaRequests extends Middleware
                     'tasks' => $team ? route('planner', $team) : route('login'),
                     'projects' => $team ? route('projects.index', $team) : route('login'),
                     'imports' => $team ? route('imports.index', $team) : route('login'),
+                    ...($team?->time_tracking_enabled ? [
+                        'timesheet' => route('timesheet.index', $team),
+                    ] : []),
                 ],
+                ...($team?->time_tracking_enabled ? [
+                    'time' => [
+                        'current' => route('time.current', $team),
+                        'stopTimer' => route('time.timer.stop', $team),
+                        'startTimer' => route('time.timer.start', ['team' => $team, 'task' => '__TASK__']),
+                        'entriesStore' => route('time.entries.store', $team),
+                        'entriesUpdate' => route('time.entries.update', ['team' => $team, 'timeEntry' => '__ENTRY__']),
+                        'entriesDestroy' => route('time.entries.destroy', ['team' => $team, 'timeEntry' => '__ENTRY__']),
+                    ],
+                ] : []),
                 'planner' => $team ? route('planner', $team) : route('login'),
                 'tasks' => $team ? route('tasks', $team) : route('login'),
                 'projects' => [

@@ -88,6 +88,20 @@ export function ProjectsForm({
                             </Select>
                         </div>
 
+                        <div className="projects-form__field">
+                            <Label htmlFor="projects-form-budget">Budget hours</Label>
+                            <Input
+                                id="projects-form-budget"
+                                type="number"
+                                min="0"
+                                step="0.25"
+                                value={value.budget_hours ?? ''}
+                                onChange={(event) => onFieldChange('budget_hours', event.target.value)}
+                                placeholder="Optional"
+                                disabled={isSaving || Boolean(value.template_project_id)}
+                            />
+                        </div>
+
                         {canSelectTemplate ? (
                             <div className="projects-form__field">
                                 <Label htmlFor="projects-form-template">Template</Label>

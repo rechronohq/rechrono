@@ -72,6 +72,7 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onProje
 
     const allRowsSelected = rows.length > 0 && selectedIds.length === rows.length;
     const someRowsSelected = selectedIds.length > 0 && !allRowsSelected;
+    const showTimeColumns = rows.some((row) => row.actual_hours !== undefined && row.actual_hours !== null);
 
     const columns = useMemo(() => [
         {
@@ -144,6 +145,22 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onProje
             cell: ({ row }) => formatDateDisplay(row.original.end_date),
             sortUndefined: 'last',
         },
+        ...(showTimeColumns ? [
+            {
+                accessorKey: 'budget_hours',
+                header: ({ column }) => <SortableHeader column={column}>Budget</SortableHeader>,
+                cell: ({ row }) => row.original.budget_hours === null || row.original.budget_hours === undefined
+                    ? '—'
+                    : `${Number(row.original.budget_hours).toFixed(2)}h`,
+                sortUndefined: 'last',
+            },
+            {
+                accessorKey: 'actual_hours',
+                header: ({ column }) => <SortableHeader column={column}>Actual</SortableHeader>,
+                cell: ({ row }) => `${Number(row.original.actual_hours ?? 0).toFixed(2)}h`,
+                sortUndefined: 'last',
+            },
+        ] : []),
         {
             id: 'actions',
             header: () => <span className="sr-only">Actions</span>,
@@ -161,7 +178,7 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onProje
             },
             enableSorting: false,
         },
-    ], [allRowsSelected, isSubmitting, rows, selectedIds, someRowsSelected, onProjectAction]);
+    ], [allRowsSelected, isSubmitting, rows, selectedIds, showTimeColumns, someRowsSelected, onProjectAction]);
 
     const table = useReactTable({
         data: rows,

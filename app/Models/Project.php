@@ -21,6 +21,7 @@ class Project extends Model
         'team_id',
         'name',
         'description',
+        'budget_hours',
         'is_template',
         'is_active',
         'parent_id',
@@ -31,6 +32,7 @@ class Project extends Model
         return [
             'is_template' => 'boolean',
             'is_active' => 'boolean',
+            'budget_hours' => 'decimal:2',
         ];
     }
 
@@ -60,6 +62,11 @@ class Project extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class)->orderBy('sort_order')->orderBy('start_date')->orderBy('name');
+    }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
     }
 
     public function rootTasks(): HasMany

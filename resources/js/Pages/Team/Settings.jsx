@@ -1,7 +1,9 @@
 import { router, useForm, usePage } from '@inertiajs/react';
+import { Clock3, KeyRound, UsersRound } from 'lucide-react';
 
 import AppPage from '@/Layouts/AppPage';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -34,7 +36,9 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
     const teamForm = useForm({
         name: team.name,
         slug: team.slug,
+        time_tracking_enabled: Boolean(team.time_tracking_enabled),
     });
+    const isTimeTrackingEnabled = Boolean(teamForm.data.time_tracking_enabled);
 
     const inviteForm = useForm({
         email: '',
@@ -56,68 +60,135 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
 
     return (
         <AppPage title="Team settings" activeApp="settings">
-            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-8">
+            <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
                 {flash?.status && statusMessages[flash.status] ? (
                     <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                         {statusMessages[flash.status]}
                     </p>
                 ) : null}
 
-                <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
-                    <div className="mb-6">
-                        <h1 className="text-2xl font-semibold tracking-[-0.04em] text-stone-950">Team settings</h1>
-                        <p className="mt-1 text-sm text-stone-500">
-                            {isOwner
-                                ? 'Manage your team name, URL, and members.'
-                                : 'View your team details. Contact the owner to make changes.'}
-                        </p>
-                    </div>
+                <div>
+                    <h1 className="text-2xl font-semibold text-stone-950">Team settings</h1>
+                    <p className="mt-1 max-w-2xl text-sm text-stone-500">
+                        {isOwner
+                            ? 'Manage the workspace profile, members, integrations, and optional team modules.'
+                            : 'View your team details. Contact the owner to make changes.'}
+                    </p>
+                </div>
 
-                    <form
-                        className="space-y-4"
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            if (!isOwner) {
-                                return;
-                            }
+                <form
+                    className="space-y-4"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!isOwner) {
+                            return;
+                        }
 
-                            teamForm.patch(teamSettingsRoutes.teamSettingsUpdate);
-                        }}
-                    >
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-stone-700">Team name</label>
-                            <Input
-                                value={teamForm.data.name}
-                                onChange={(event) => teamForm.setData('name', event.target.value)}
-                                disabled={!isOwner}
-                            />
-                            {teamForm.errors.name ? <p className="text-sm text-rose-600">{teamForm.errors.name}</p> : null}
+                        teamForm.patch(teamSettingsRoutes.teamSettingsUpdate);
+                    }}
+                >
+                    <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
+                        <div className="mb-6">
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-400">Workspace</p>
+                            <h2 className="mt-2 text-xl font-semibold text-stone-950">Team profile</h2>
+                            <p className="mt-1 text-sm text-stone-500">Core identity and URL settings for this team.</p>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-stone-700">Team URL</label>
-                            <div className="flex items-center gap-2">
-                                <span className="shrink-0 text-sm text-stone-400">/</span>
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-stone-700">Team name</label>
                                 <Input
-                                    value={teamForm.data.slug}
-                                    onChange={(event) => teamForm.setData('slug', event.target.value)}
+                                    value={teamForm.data.name}
+                                    onChange={(event) => teamForm.setData('name', event.target.value)}
                                     disabled={!isOwner}
-                                    className="font-mono text-sm"
                                 />
+                                {teamForm.errors.name ? <p className="text-sm text-rose-600">{teamForm.errors.name}</p> : null}
                             </div>
-                            {teamForm.errors.slug ? <p className="text-sm text-rose-600">{teamForm.errors.slug}</p> : null}
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-stone-700">Team URL</label>
+                                <div className="flex items-center gap-2">
+                                    <span className="shrink-0 text-sm text-stone-400">/</span>
+                                    <Input
+                                        value={teamForm.data.slug}
+                                        onChange={(event) => teamForm.setData('slug', event.target.value)}
+                                        disabled={!isOwner}
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+                                {teamForm.errors.slug ? <p className="text-sm text-rose-600">{teamForm.errors.slug}</p> : null}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
+                        <div className="mb-6">
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-400">Configuration</p>
+                            <h2 className="mt-2 text-xl font-semibold text-stone-950">Modules</h2>
+                            <p className="mt-1 text-sm text-stone-500">Turn optional team apps and workflows on or off.</p>
                         </div>
 
-                        {isOwner ? (
+                        <div className="rounded-md border border-blue-100 bg-blue-50/40 p-4">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-white text-blue-600 shadow-sm">
+                                        <Clock3 className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="text-base font-semibold text-stone-950">Time tracking</h3>
+                                            <span
+                                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                                    isTimeTrackingEnabled
+                                                        ? 'bg-emerald-50 text-emerald-700'
+                                                        : 'bg-stone-100 text-stone-600'
+                                                }`}
+                                            >
+                                                {isTimeTrackingEnabled ? 'Enabled' : 'Disabled'}
+                                            </span>
+                                        </div>
+                                        <p className="mt-1 max-w-2xl text-sm leading-6 text-stone-600">
+                                            Adds task timers, a Timesheet app, editable weekly entries, and project actuals against budget hours.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <label className="flex min-w-[180px] items-start gap-3 rounded-[6px] border border-stone-200 bg-white px-3 py-3 text-sm text-stone-700 shadow-sm">
+                                    <Checkbox
+                                        checked={teamForm.data.time_tracking_enabled}
+                                        onCheckedChange={(checked) => teamForm.setData('time_tracking_enabled', Boolean(checked))}
+                                        disabled={!isOwner}
+                                        aria-label="Enable time tracking"
+                                    />
+                                    <span>
+                                        <span className="block font-medium text-stone-900">
+                                            {isTimeTrackingEnabled ? 'Active' : 'Enable module'}
+                                        </span>
+                                        <span className="mt-0.5 block text-stone-500">
+                                            {isOwner ? 'Save to apply' : 'Owner only'}
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </section>
+
+                    {isOwner ? (
+                        <div className="flex justify-end">
                             <Button type="submit" disabled={teamForm.processing}>Save team settings</Button>
-                        ) : null}
-                    </form>
-                </section>
+                        </div>
+                    ) : null}
+                </form>
 
                 <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
-                    <div className="mb-6">
-                        <h2 className="text-xl font-semibold tracking-[-0.03em] text-stone-950">Members</h2>
-                        <p className="mt-1 text-sm text-stone-500">People who can access this team workspace.</p>
+                    <div className="mb-6 flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-stone-100 text-stone-600">
+                            <UsersRound className="h-[18px] w-[18px]" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-semibold text-stone-950">Members</h2>
+                            <p className="mt-1 text-sm text-stone-500">People who can access this team workspace.</p>
+                        </div>
                     </div>
 
                     <ul className="divide-y divide-stone-100 rounded-md border border-stone-200">
@@ -202,11 +273,16 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                 </section>
 
                 <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
-                    <div className="mb-6">
-                        <h2 className="text-xl font-semibold tracking-[-0.03em] text-stone-950">API tokens</h2>
-                        <p className="mt-1 text-sm text-stone-500">
-                            Create personal tokens for API clients and integrations.
-                        </p>
+                    <div className="mb-6 flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-stone-100 text-stone-600">
+                            <KeyRound className="h-[18px] w-[18px]" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-semibold text-stone-950">API tokens</h2>
+                            <p className="mt-1 text-sm text-stone-500">
+                                Create personal tokens for API clients and integrations.
+                            </p>
+                        </div>
                     </div>
 
                     {newApiToken ? (

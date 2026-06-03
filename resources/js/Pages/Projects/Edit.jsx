@@ -14,6 +14,7 @@ export default function ProjectsEdit({ project, projects }) {
         name: project.name ?? '',
         parent_id: project.parent_id ?? '',
         description: project.description ?? '',
+        budget_hours: project.budget_hours ?? '',
     });
 
     function handleFieldChange(field, value) {
@@ -36,6 +37,7 @@ export default function ProjectsEdit({ project, projects }) {
                 body: JSON.stringify({
                     name: form.name.trim(),
                     description: form.description.trim() || null,
+                    budget_hours: form.budget_hours === '' ? null : Number(form.budget_hours),
                     parent_id: form.parent_id || null,
                 }),
             });
