@@ -35,8 +35,8 @@ class McpPlannerTest extends TestCase
         $projects = app(ListProjects::class)->handle(new Request);
         $tasks = app(ListTasks::class)->handle(new Request);
 
-        $this->assertStringContainsString('Default Planning Board', (string) $projects->content());
-        $this->assertStringContainsString('Kickoff and scope', (string) $tasks->content());
+        $this->assertStringContainsString('Demo Workspace', (string) $projects->content());
+        $this->assertStringContainsString('Add a first task', (string) $tasks->content());
     }
 
     public function test_create_update_and_complete_tools_manage_tasks(): void

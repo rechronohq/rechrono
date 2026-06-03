@@ -27,7 +27,7 @@ class SetupApplicationTest extends TestCase
             'is_admin' => true,
         ]);
 
-        $this->assertDatabaseHas('projects', ['name' => 'Default Planning Board']);
+        $this->assertDatabaseHas('projects', ['name' => 'Demo Workspace']);
     }
 
     public function test_setup_command_can_skip_demo_data(): void

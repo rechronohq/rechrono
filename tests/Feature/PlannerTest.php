@@ -40,7 +40,7 @@ class PlannerTest extends TestCase
         $this->assertFalse(Route::has('timesheets'));
         $this->assertFalse(Route::has('invoices.index'));
 
-        $this->assertDatabaseHas('projects', ['name' => 'Default Planning Board']);
+        $this->assertDatabaseHas('projects', ['name' => 'Demo Workspace']);
     }
 
     public function test_authenticated_user_can_view_planner_and_projects_without_nomia_navigation(): void
@@ -258,7 +258,7 @@ class PlannerTest extends TestCase
     public function test_user_can_create_rename_and_delete_personal_timeline_view(): void
     {
         $user = $this->seedPlannerDemo();
-        $project = Project::query()->where('name', 'Website Relaunch')->firstOrFail();
+        $project = Project::query()->where('name', 'Example Project')->firstOrFail();
 
         $createResponse = $this->actingAs($user)
             ->postJson(route('timeline-views.store', $user->team), [
@@ -374,7 +374,7 @@ class PlannerTest extends TestCase
     public function test_saved_timeline_view_applies_normalized_settings(): void
     {
         $user = $this->seedPlannerDemo();
-        $visibleProject = Project::query()->where('name', 'Website Relaunch')->firstOrFail();
+        $visibleProject = Project::query()->where('name', 'Example Project')->firstOrFail();
         $archivedProject = Project::factory()->create([
             'name' => 'Archived saved-view board',
             'is_active' => false,

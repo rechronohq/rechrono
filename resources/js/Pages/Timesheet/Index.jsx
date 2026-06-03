@@ -115,6 +115,19 @@ export default function TimesheetIndex({ timesheet }) {
         return () => window.clearInterval(intervalId);
     }, [entries]);
 
+    useEffect(() => {
+        const refreshTimesheet = () => {
+            router.reload({
+                only: ['timesheet'],
+                preserveScroll: true,
+            });
+        };
+
+        window.addEventListener('rechrono:timer-change', refreshTimesheet);
+
+        return () => window.removeEventListener('rechrono:timer-change', refreshTimesheet);
+    }, []);
+
     function openNewEntry() {
         setDraft(defaultDraft(timesheet));
     }
@@ -181,7 +194,6 @@ export default function TimesheetIndex({ timesheet }) {
             method: 'POST',
         });
         window.dispatchEvent(new CustomEvent('rechrono:timer-change', { detail: { entry: payload.entry ?? null } }));
-        router.reload({ preserveScroll: true });
     }
 
     async function stopTimer() {
@@ -194,7 +206,6 @@ export default function TimesheetIndex({ timesheet }) {
         });
         const entry = payload.entry?.is_running ? payload.entry : null;
         window.dispatchEvent(new CustomEvent('rechrono:timer-change', { detail: { entry } }));
-        router.reload({ preserveScroll: true });
     }
 
     return (

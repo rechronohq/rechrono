@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ChevronDown, Clock3, LogOut, MoreHorizontal, Settings, Square, UserCircle2 } from 'lucide-react';
+import { ChevronDown, LogOut, MoreHorizontal, Settings, Square, UserCircle2 } from 'lucide-react';
 
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -312,7 +312,7 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
                 {currentTimer?.is_running ? (
                     <div
                         data-testid="app-shell-current-timer"
-                        className="mb-3 rounded-md border border-blue-100 bg-blue-50/70 p-3 shadow-sm"
+                        className="mb-3 rounded-md border border-stone-200 bg-white p-2.5 shadow-sm"
                     >
                         <div className="flex items-start justify-between gap-2">
                             <Link
@@ -320,31 +320,27 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
                                 className="min-w-0 flex-1"
                                 title={currentTimer.task_name}
                             >
-                                <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-blue-600">
-                                    <Clock3 className="h-3.5 w-3.5" />
-                                    Running timer
-                                </span>
-                                <span className="mt-2 block truncate text-sm font-medium text-stone-950">
+                                <span className="block truncate text-sm font-medium text-stone-950">
                                     {currentTimer.task_name ?? 'Current task'}
                                 </span>
                                 <span className="mt-0.5 block truncate text-xs text-stone-500">
                                     {currentTimer.project_name ?? 'No project'}
+                                </span>
+                                <span className="mt-1 block font-mono text-sm font-semibold tabular-nums text-stone-700">
+                                    {formatElapsedTime(elapsedSeconds)}
                                 </span>
                             </Link>
 
                             <button
                                 type="button"
                                 aria-label="Stop running timer"
+                                title="Stop timer"
                                 disabled={isStoppingTimer}
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-blue-100 bg-white text-blue-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 disabled:pointer-events-none disabled:opacity-50"
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-stone-200 bg-white text-stone-500 transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-950 disabled:pointer-events-none disabled:opacity-50"
                                 onClick={stopCurrentTimer}
                             >
-                                <Square className="h-3.5 w-3.5 fill-current" />
+                                <Square className="h-3 w-3 fill-current" />
                             </button>
-                        </div>
-
-                        <div className="mt-3 rounded-[6px] bg-white px-2.5 py-2 font-mono text-lg font-semibold tabular-nums text-stone-950 shadow-sm">
-                            {formatElapsedTime(elapsedSeconds)}
                         </div>
                     </div>
                 ) : null}
