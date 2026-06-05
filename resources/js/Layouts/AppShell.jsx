@@ -8,6 +8,7 @@ export default function AppShell({
     activePrimaryApp,
     activePrimaryLabel,
     groups = [],
+    utilityApps = [],
     localNavigation = [],
     contextBar = null,
     appToolbar = null,
@@ -26,6 +27,7 @@ export default function AppShell({
                         activePrimaryApp={activePrimaryApp}
                         activePrimaryLabel={activePrimaryLabel}
                         groups={groups}
+                        utilityApps={utilityApps}
                         localNavigation={localNavigation}
                     />
 

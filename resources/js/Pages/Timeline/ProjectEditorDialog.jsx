@@ -139,6 +139,20 @@ export function ProjectEditorDialog({
                                 </div>
 
                                 <div className="space-y-1.5">
+                                    <Label htmlFor="project-editor-budget">Budget hours</Label>
+                                    <Input
+                                        id="project-editor-budget"
+                                        type="number"
+                                        min="0"
+                                        step="0.25"
+                                        value={value.budget_hours ?? ''}
+                                        onChange={(event) => onFieldChange('budget_hours', event.target.value)}
+                                        placeholder="Optional"
+                                        disabled={isSaving}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
                                     <Label htmlFor="project-editor-notes">Notes</Label>
                                     <Textarea
                                         id="project-editor-notes"

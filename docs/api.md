@@ -2,6 +2,8 @@
 
 The API is available under `/api/{team_slug}` and uses Laravel Sanctum bearer tokens.
 
+Private agent integrations can also use the MCP server documented in [mcp.md](mcp.md). The REST API remains the canonical external contract; MCP tools are scoped wrappers around the same planner rules.
+
 Create a token from the team settings page, then send it with each request:
 
 ```http

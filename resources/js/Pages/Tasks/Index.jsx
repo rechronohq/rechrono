@@ -67,6 +67,7 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                     <div className="timeline-sidebar-pane">
                         <TasksSidebar
                             collapsedGroupIds={board.collapsedGroupIds}
+                            currentTimer={board.currentTimer}
                             drafts={board.drafts}
                             focusedComposerParentId={board.focusedComposerParentId}
                             hoveredTaskId={board.hoveredTaskId}
@@ -92,6 +93,8 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                             onSaveProjectAsTemplate={board.saveProjectAsTemplate}
                             onSetSingleSelection={board.setSingleSidebarSelection}
                             onSubmitTask={board.submitTask}
+                            onStartTaskTimer={board.startTaskTimer}
+                            onStopTaskTimer={board.stopTaskTimer}
                             onTaskClick={board.openTaskModal}
                             onToggleGroupCollapse={board.toggleGroupCollapse}
                             onToggleProjectCollapse={board.toggleProjectCollapse}
@@ -141,11 +144,14 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
 
                 <TaskDialog
                     assigneeOptions={board.data.assignee_options ?? []}
+                    currentTimer={board.currentTimer}
                     isSaving={board.isSaving}
                     onClose={board.closeTaskModal}
                     onDelete={board.removeTaskFromModal}
                     onDuplicate={board.duplicateTaskFromModal}
                     onFieldChange={board.setTaskModalField}
+                    onStartTimer={board.startTaskTimer}
+                    onStopTimer={board.stopTaskTimer}
                     onSubmit={board.submitTaskModal}
                     open={board.taskModalOpen}
                     parentTaskOptions={board.taskModalParentOptions}

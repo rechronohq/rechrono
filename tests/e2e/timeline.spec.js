@@ -5,42 +5,42 @@ import { login, sidebarProjectRow, sidebarTaskRow } from './helpers/app';
 test('project header selection supports browser back navigation', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Website Relaunch');
+    const projectRow = sidebarProjectRow(page, 'Example Project');
     await projectRow.hover();
     await projectRow.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Open' }).click();
 
-    await expect(sidebarTaskRow(page, 'Strategy')).toBeVisible();
-    await expect(sidebarTaskRow(page, 'Planning')).toHaveCount(0);
+    await expect(sidebarTaskRow(page, 'Organize ideas')).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Plan')).toHaveCount(0);
 
     await page.goBack();
 
-    await expect(sidebarTaskRow(page, 'Strategy')).toBeVisible();
-    await expect(sidebarTaskRow(page, 'Planning')).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Organize ideas')).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Plan')).toBeVisible();
 });
 
 test('breadcrumb navigation still works from a selected project', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Website Relaunch');
+    const projectRow = sidebarProjectRow(page, 'Example Project');
     await projectRow.hover();
     await projectRow.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Open' }).click();
 
     const commandBar = page.getByTestId('tasks-command-bar');
     const breadcrumbs = commandBar.getByRole('navigation');
-    await expect(breadcrumbs.getByRole('button', { name: 'Website Relaunch' })).toBeVisible();
+    await expect(breadcrumbs.getByRole('button', { name: 'Example Project' })).toBeVisible();
 
     await breadcrumbs.getByRole('button', { name: 'All projects' }).click();
 
-    await expect(sidebarTaskRow(page, 'Strategy')).toBeVisible();
-    await expect(sidebarTaskRow(page, 'Planning')).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Organize ideas')).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Plan')).toBeVisible();
 });
 
 test('project popup exposes project tools including project view', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Default Planning Board');
+    const projectRow = sidebarProjectRow(page, 'Demo Workspace');
     await projectRow.click();
 
     await expect(page.getByRole('dialog', { name: 'Edit project' })).toBeVisible();
@@ -55,7 +55,7 @@ test('project popup exposes project tools including project view', async ({ page
 test('project popup can update notes', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Default Planning Board');
+    const projectRow = sidebarProjectRow(page, 'Demo Workspace');
     await projectRow.click();
 
     await page.getByLabel('Notes').fill('Timeline popup notes');
@@ -63,7 +63,7 @@ test('project popup can update notes', async ({ page }) => {
 
     await expect(page.getByRole('dialog', { name: 'Edit project' })).toHaveCount(0);
 
-    await sidebarProjectRow(page, 'Default Planning Board').click();
+    await sidebarProjectRow(page, 'Demo Workspace').click();
     await expect(page.getByLabel('Notes')).toHaveValue('Timeline popup notes');
 });
 
@@ -146,13 +146,13 @@ test('archived projects are hidden from the timeline', async ({ page }) => {
     await page.goto('/tasks');
 
     await expect(sidebarProjectRow(page, 'Archived Timeline Board')).toHaveCount(0);
-    await expect(sidebarProjectRow(page, 'Default Planning Board')).toBeVisible();
+    await expect(sidebarProjectRow(page, 'Demo Workspace')).toBeVisible();
 });
 
 test('project rows align with the timeline day band', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Website Relaunch');
+    const projectRow = sidebarProjectRow(page, 'Example Project');
     const dayBand = page.locator('.timeline-days');
 
     const projectRowBox = await projectRow.boundingBox();
@@ -167,8 +167,8 @@ test('project rows align with the timeline day band', async ({ page }) => {
 test('task reorder handles align across task nesting levels', async ({ page }) => {
     await login(page);
 
-    const rootTaskRow = sidebarTaskRow(page, 'Planning');
-    const childTaskRow = sidebarTaskRow(page, 'Scenario review');
+    const rootTaskRow = sidebarTaskRow(page, 'Plan');
+    const childTaskRow = sidebarTaskRow(page, 'Review the schedule');
 
     await expect(rootTaskRow).toBeVisible();
     await expect(childTaskRow).toBeVisible();
@@ -226,7 +226,7 @@ test('sidebar rows scroll vertically with the timeline without following horizon
 
     const verticalScroll = page.locator('.timeline-scroll');
     const horizontalScroll = page.locator('.timeline-horizontal-scroll');
-    const sidebarRow = sidebarTaskRow(page, 'Scenario review');
+    const sidebarRow = sidebarTaskRow(page, 'Review the schedule');
     const timelineRow = page.locator('.timeline-grid-row').nth(2);
 
     const sidebarBefore = await sidebarRow.boundingBox();
@@ -263,7 +263,7 @@ test('sidebar rows scroll vertically with the timeline without following horizon
 test('hovering a timeline bar highlights the matching sidebar task', async ({ page }) => {
     await login(page);
 
-    const sidebarRow = sidebarTaskRow(page, 'Scenario review');
+    const sidebarRow = sidebarTaskRow(page, 'Review the schedule');
     await expect(sidebarRow).toBeVisible();
 
     const taskId = await sidebarRow.getAttribute('data-task-id');
@@ -326,7 +326,7 @@ test('timeline view settings can switch to compact density', async ({ page }) =>
 test('timeline views can be saved loaded renamed and deleted from the sidebar', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Website Relaunch');
+    const projectRow = sidebarProjectRow(page, 'Example Project');
     await projectRow.hover();
     await projectRow.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Open' }).click();
@@ -349,14 +349,14 @@ test('timeline views can be saved loaded renamed and deleted from the sidebar', 
     await expect(sidebar.getByRole('link', { name: 'Website compact' })).toBeVisible();
 
     await page.goto('/tasks');
-    await expect(sidebarTaskRow(page, 'Planning')).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Plan')).toBeVisible();
     await expect(page.locator('.timeline-weekend-band')).toHaveCount(0);
 
     await sidebar.getByRole('link', { name: 'Website compact' }).click();
 
     await expect(page).toHaveURL(/\/timeline\/views\/.+/);
-    await expect(sidebarTaskRow(page, 'Strategy')).toBeVisible();
-    await expect(sidebarTaskRow(page, 'Planning')).toHaveCount(0);
+    await expect(sidebarTaskRow(page, 'Organize ideas')).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Plan')).toHaveCount(0);
     await expect(page.locator('.timeline-weekend-band').first()).toBeVisible();
     await expect.poll(async () => {
         const box = await page.locator('.timeline-day').first().boundingBox();
@@ -377,7 +377,7 @@ test('timeline views can be saved loaded renamed and deleted from the sidebar', 
 test('active timeline view saves changed settings back to the saved view', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Website Relaunch');
+    const projectRow = sidebarProjectRow(page, 'Example Project');
     await projectRow.hover();
     await projectRow.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Open' }).click();
@@ -421,7 +421,7 @@ test('active timeline view saves changed settings back to the saved view', async
 test('project rows expose hover actions and open the same menu from overflow or right-click', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Website Relaunch');
+    const projectRow = sidebarProjectRow(page, 'Example Project');
     await expect(projectRow).toBeVisible();
 
     await expect(projectRow.getByRole('button', { name: 'More actions' })).toHaveCount(1);
@@ -431,8 +431,8 @@ test('project rows expose hover actions and open the same menu from overflow or 
 
     await projectRow.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Open' }).click();
-    await expect(sidebarTaskRow(page, 'Strategy')).toBeVisible();
-    await expect(sidebarTaskRow(page, 'Planning')).toHaveCount(0);
+    await expect(sidebarTaskRow(page, 'Organize ideas')).toBeVisible();
+    await expect(sidebarTaskRow(page, 'Plan')).toHaveCount(0);
 
     await page.goBack();
 
@@ -457,57 +457,57 @@ test('project rows expose hover actions and open the same menu from overflow or 
 test('task row actions can convert a task into a group', async ({ page }) => {
     await login(page);
 
-    const taskRow = sidebarTaskRow(page, 'Review and launch');
+    const taskRow = sidebarTaskRow(page, 'Share the plan');
     await taskRow.hover();
     await taskRow.getByRole('button', { name: 'More actions' }).click();
 
     await expect(page.getByRole('menuitem', { name: 'Mark complete' })).toBeVisible();
     await page.getByRole('menuitem', { name: 'Convert to group' }).click();
 
-    const convertedRow = sidebarTaskRow(page, 'Review and launch');
+    const convertedRow = sidebarTaskRow(page, 'Share the plan');
     await expect(convertedRow.getByRole('checkbox')).toHaveCount(0);
 
     await convertedRow.click();
 
     await expect(page.getByRole('dialog', { name: 'Edit group' })).toBeVisible();
-    await expect(page.getByTestId('group-dialog-name')).toHaveValue('Review and launch');
+    await expect(page.getByTestId('group-dialog-name')).toHaveValue('Share the plan');
 });
 
 test('project chevron toggles collapse without opening the project modal', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Default Planning Board');
+    const projectRow = sidebarProjectRow(page, 'Demo Workspace');
     await expect(projectRow).toBeVisible();
 
     await projectRow.getByRole('button', { name: 'Collapse project' }).click();
 
     await expect(page.getByRole('heading', { name: 'Edit project' })).toHaveCount(0);
-    await expect(sidebarTaskRow(page, 'Planning')).toHaveCount(0);
+    await expect(sidebarTaskRow(page, 'Plan')).toHaveCount(0);
 });
 
 test('clicking a sidebar task opens the edit modal', async ({ page }) => {
     await login(page);
 
-    const taskRow = sidebarTaskRow(page, 'Scenario review');
+    const taskRow = sidebarTaskRow(page, 'Review the schedule');
     await taskRow.hover();
     await expect(taskRow.getByRole('button', { name: 'More actions' })).toBeVisible();
     await taskRow.click();
 
     await expect(page.getByRole('heading', { name: 'Edit task' })).toBeVisible();
-    await expect(page.locator('input[placeholder=\"Task name\"]')).toHaveValue('Scenario review');
+    await expect(page.locator('input[placeholder=\"Task name\"]')).toHaveValue('Review the schedule');
     await expect(page.getByLabel('Notes')).toBeVisible();
 });
 
 test('dragging a calendar task does not open the edit modal', async ({ page }) => {
     await login(page);
 
-    const taskBar = page.locator('.timeline-bar').filter({ hasText: 'Scenario review' }).first();
+    const taskBar = page.locator('.timeline-bar').filter({ hasText: 'Review the schedule' }).first();
     await expect(taskBar).toBeVisible();
 
     const box = await taskBar.boundingBox();
 
     if (!box) {
-        throw new Error('Scenario review bar not found');
+        throw new Error('Review the schedule bar not found');
     }
 
     await page.mouse.move(box.x + (box.width / 2), box.y + (box.height / 2));
@@ -521,9 +521,9 @@ test('dragging a calendar task does not open the edit modal', async ({ page }) =
 test('clicking a project row opens the project modal', async ({ page }) => {
     await login(page);
 
-    const projectRow = sidebarProjectRow(page, 'Website Relaunch');
+    const projectRow = sidebarProjectRow(page, 'Example Project');
     await expect(projectRow).toBeVisible();
 
-    await projectRow.getByRole('button', { name: 'Website Relaunch' }).click();
+    await projectRow.getByRole('button', { name: 'Example Project' }).click();
     await expect(page.getByRole('heading', { name: 'Edit project' })).toBeVisible();
 });

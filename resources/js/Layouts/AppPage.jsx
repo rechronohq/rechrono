@@ -25,6 +25,7 @@ export default function AppPage({
             activePrimaryApp={appChrome.activePrimaryApp}
             activePrimaryLabel={appChrome.activePrimaryLabel}
             groups={appChrome.groups}
+            utilityApps={appChrome.utilityApps}
             localNavigation={appChrome.localNavigation}
             contextBar={contextBar ?? <AppContextBar title={title} context={context} actions={actions} container={container} />}
             secondarySidebar={secondarySidebar}

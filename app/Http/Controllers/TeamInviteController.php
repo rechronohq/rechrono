@@ -24,7 +24,7 @@ class TeamInviteController extends Controller
         Notification::route('mail', $invitation->email)
             ->notify(new TeamInvitationNotification($invitation));
 
-        return Redirect::route('team-settings.edit', $team)->with('status', 'invite-sent');
+        return Redirect::route('team-settings.section', [$team, 'members'])->with('status', 'invite-sent');
     }
 
     public function destroy(Request $request, Team $team, TeamInvitation $invitation): RedirectResponse
@@ -35,6 +35,6 @@ class TeamInviteController extends Controller
 
         $invitation->delete();
 
-        return Redirect::route('team-settings.edit', $team)->with('status', 'invite-cancelled');
+        return Redirect::route('team-settings.section', [$team, 'members'])->with('status', 'invite-cancelled');
     }
 }

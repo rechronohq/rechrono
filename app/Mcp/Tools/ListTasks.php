@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Mcp\PlannerMcpContext;
 use App\Models\Task;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -14,15 +15,25 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsReadOnly]
 class ListTasks extends Tool
 {
+    public function __construct(
+        protected PlannerMcpContext $context,
+    ) {}
+
     public function handle(Request $request): Response
     {
         $validated = $request->validate([
+            'team_slug' => ['required', 'string'],
             'project_id' => ['nullable', 'uuid', 'exists:projects,id'],
         ]);
+        $team = $this->context->teamForSlug($validated['team_slug'], 'planner:read');
+        $project = isset($validated['project_id'])
+            ? $this->context->projectForTeam($team, $validated['project_id'])
+            : null;
 
         $tasks = Task::query()
             ->with(['project', 'dependency', 'parent', 'assigneeUser'])
-            ->when($validated['project_id'] ?? null, fn ($query, $projectId) => $query->where('project_id', $projectId))
+            ->whereIn('project_id', $team->projects()->select('id'))
+            ->when($project, fn ($query) => $query->where('project_id', $project->id))
             ->orderBy('start_date')
             ->orderBy('name')
             ->get()
@@ -53,7 +64,13 @@ class ListTasks extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
+            'team_slug' => $schema->string()->required(),
             'project_id' => $schema->string()->nullable()->format('uuid'),
         ];
+    }
+
+    public function shouldRegister(): bool
+    {
+        return $this->context->canUse('planner:read');
     }
 }

@@ -77,6 +77,11 @@ class Task extends Model
         return $this->hasMany(self::class, 'dependency_id');
     }
 
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
     public function hasChildren(): bool
     {
         return $this->relationLoaded('children')

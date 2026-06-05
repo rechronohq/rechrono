@@ -8,6 +8,8 @@ use App\Mcp\Tools\CompleteTask;
 use App\Mcp\Tools\CreateTask;
 use App\Mcp\Tools\ListProjects;
 use App\Mcp\Tools\ListTasks;
+use App\Mcp\Tools\ReadProject;
+use App\Mcp\Tools\ReorderTask;
 use App\Mcp\Tools\UpdateTask;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
@@ -22,7 +24,9 @@ class PlannerServer extends Server
     protected array $tools = [
         ListProjects::class,
         ListTasks::class,
+        ReadProject::class,
         CreateTask::class,
+        ReorderTask::class,
         UpdateTask::class,
         CompleteTask::class,
     ];

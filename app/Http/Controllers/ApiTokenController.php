@@ -18,7 +18,7 @@ class ApiTokenController extends Controller
             : ['planner:read'];
         $token = $request->user()->createToken($validated['name'], $abilities);
 
-        return Redirect::route('team-settings.edit', $team)
+        return Redirect::route('team-settings.section', [$team, 'api-tokens'])
             ->with('status', 'api-token-created')
             ->with('api_token_plain_text', $token->plainTextToken);
     }
@@ -32,6 +32,6 @@ class ApiTokenController extends Controller
 
         $token->delete();
 
-        return Redirect::route('team-settings.edit', $team)->with('status', 'api-token-revoked');
+        return Redirect::route('team-settings.section', [$team, 'api-tokens'])->with('status', 'api-token-revoked');
     }
 }

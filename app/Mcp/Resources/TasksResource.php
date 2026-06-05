@@ -2,23 +2,34 @@
 
 namespace App\Mcp\Resources;
 
+use App\Mcp\PlannerMcpContext;
 use App\Models\Task;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\MimeType;
-use Laravel\Mcp\Server\Attributes\Uri;
+use Laravel\Mcp\Server\Contracts\HasUriTemplate;
 use Laravel\Mcp\Server\Resource;
+use Laravel\Mcp\Support\UriTemplate;
 
 #[Description('Read-only task snapshot for the planner.')]
 #[MimeType('application/json')]
-#[Uri('planner://tasks')]
-class TasksResource extends Resource
+class TasksResource extends Resource implements HasUriTemplate
 {
+    public function __construct(
+        protected PlannerMcpContext $context,
+    ) {}
+
     public function handle(Request $request): Response
     {
+        $validated = $request->validate([
+            'team_slug' => ['required', 'string'],
+        ]);
+        $team = $this->context->teamForSlug($validated['team_slug'], 'planner:read');
+
         $tasks = Task::query()
             ->with(['project', 'dependency', 'parent', 'assigneeUser'])
+            ->whereIn('project_id', $team->projects()->select('id'))
             ->orderBy('start_date')
             ->orderBy('name')
             ->get()
@@ -44,5 +55,15 @@ class TasksResource extends Resource
         return Response::json([
             'tasks' => $tasks,
         ]);
+    }
+
+    public function uriTemplate(): UriTemplate
+    {
+        return new UriTemplate('planner://{team_slug}/tasks');
+    }
+
+    public function shouldRegister(): bool
+    {
+        return $this->context->canUse('planner:read');
     }
 }

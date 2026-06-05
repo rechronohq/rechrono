@@ -33,6 +33,10 @@ export default function ProjectsIndex({ projects }) {
             return;
         }
 
+        if (action === 'delete' && !window.confirm(`Delete ${projectIds.length} selected ${projectIds.length === 1 ? 'project' : 'projects'}? This cannot be undone.`)) {
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -59,6 +63,10 @@ export default function ProjectsIndex({ projects }) {
 
     async function handleProjectAction(action, project) {
         if (isSubmitting) {
+            return;
+        }
+
+        if (action === 'delete' && !window.confirm(`Delete "${project.name}"? This will also delete its tasks. This cannot be undone.`)) {
             return;
         }
 

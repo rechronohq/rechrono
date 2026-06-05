@@ -11,32 +11,32 @@ class StarterWorkspaceSeeder
     public function seed(Team $team): void
     {
         $project = Project::firstOrCreate(
-            ['team_id' => $team->id, 'name' => 'Default Planning Board'],
-            ['description' => 'Starter project seeded for the internal Gantt planner.'],
+            ['team_id' => $team->id, 'name' => 'Demo Workspace'],
+            ['description' => 'A simple starter project that shows common planning workflows.'],
         );
 
         if (! $project->tasks()->exists()) {
-            $this->seedDefaultPlanningBoard($project);
+            $this->seedDemoWorkspace($project);
         }
 
         $secondProject = Project::firstOrCreate(
-            ['team_id' => $team->id, 'name' => 'Website Relaunch'],
-            ['description' => 'Second seeded board for the unified planner timeline.'],
+            ['team_id' => $team->id, 'name' => 'Example Project'],
+            ['description' => 'A second sample project for trying timeline and template features.'],
         );
 
         if (! $secondProject->tasks()->exists()) {
-            $this->seedWebsiteRelaunch($secondProject);
+            $this->seedExampleProject($secondProject);
         }
     }
 
-    protected function seedDefaultPlanningBoard(Project $project): void
+    protected function seedDemoWorkspace(Project $project): void
     {
         $planning = Task::create([
             'project_id' => $project->id,
             'parent_id' => null,
             'sort_order' => 0,
-            'name' => 'Planning',
-            'description' => 'Define scope and initial preparation.',
+            'name' => 'Plan',
+            'description' => 'Collect the basics before work starts.',
             'start_date' => now()->startOfDay(),
             'end_date' => now()->addDays(4)->startOfDay(),
             'progress' => 0,
@@ -47,8 +47,8 @@ class StarterWorkspaceSeeder
             'project_id' => $project->id,
             'parent_id' => null,
             'sort_order' => 1,
-            'name' => 'Delivery',
-            'description' => 'Build and launch the work.',
+            'name' => 'Build',
+            'description' => 'Move the plan through active work and review.',
             'start_date' => now()->addDays(5)->startOfDay(),
             'end_date' => now()->addDays(12)->startOfDay(),
             'progress' => 0,
@@ -59,8 +59,8 @@ class StarterWorkspaceSeeder
             'project_id' => $project->id,
             'parent_id' => $planning->id,
             'sort_order' => 0,
-            'name' => 'Kickoff and scope',
-            'description' => 'Confirm scope, owners, and the first delivery window.',
+            'name' => 'Add a first task',
+            'description' => 'Create a task with dates, progress, and completion status.',
             'start_date' => now()->startOfDay(),
             'end_date' => now()->addDay()->startOfDay(),
             'progress' => 100,
@@ -71,8 +71,8 @@ class StarterWorkspaceSeeder
             'project_id' => $project->id,
             'parent_id' => $planning->id,
             'sort_order' => 1,
-            'name' => 'Scenario review',
-            'description' => 'Review requirements before execution begins.',
+            'name' => 'Review the schedule',
+            'description' => 'Use the timeline to compare dates and make adjustments.',
             'start_date' => now()->addDays(2)->startOfDay(),
             'end_date' => now()->addDays(4)->startOfDay(),
             'progress' => 0,
@@ -83,8 +83,8 @@ class StarterWorkspaceSeeder
             'project_id' => $project->id,
             'parent_id' => $delivery->id,
             'sort_order' => 0,
-            'name' => 'Build planner',
-            'description' => 'Implement the scheduling workflow and task tracking.',
+            'name' => 'Track progress',
+            'description' => 'Update progress and connect this task to earlier work.',
             'start_date' => now()->addDays(5)->startOfDay(),
             'end_date' => now()->addDays(9)->startOfDay(),
             'progress' => 55,
@@ -96,8 +96,8 @@ class StarterWorkspaceSeeder
             'project_id' => $project->id,
             'parent_id' => $build->id,
             'sort_order' => 0,
-            'name' => 'Frontend timeline',
-            'description' => 'Build the interactive timeline surface.',
+            'name' => 'Add a nested task',
+            'description' => 'Nest related work under a larger task.',
             'start_date' => now()->addDays(5)->startOfDay(),
             'end_date' => now()->addDays(7)->startOfDay(),
             'progress' => 0,
@@ -108,8 +108,8 @@ class StarterWorkspaceSeeder
             'project_id' => $project->id,
             'parent_id' => $delivery->id,
             'sort_order' => 1,
-            'name' => 'Review and launch',
-            'description' => 'Review the plan with the team and confirm rollout readiness.',
+            'name' => 'Share the plan',
+            'description' => 'Review the work, then duplicate, archive, or save it as a template.',
             'start_date' => now()->addDays(10)->startOfDay(),
             'end_date' => now()->addDays(12)->startOfDay(),
             'progress' => 0,
@@ -118,14 +118,14 @@ class StarterWorkspaceSeeder
         ]);
     }
 
-    protected function seedWebsiteRelaunch(Project $project): void
+    protected function seedExampleProject(Project $project): void
     {
         $strategy = Task::create([
             'project_id' => $project->id,
             'parent_id' => null,
             'sort_order' => 0,
-            'name' => 'Strategy',
-            'description' => 'Define relaunch goals and positioning.',
+            'name' => 'Organize ideas',
+            'description' => 'Group related work before turning it into tasks.',
             'start_date' => now()->addDays(1)->startOfDay(),
             'end_date' => now()->addDays(5)->startOfDay(),
             'progress' => 0,
@@ -136,8 +136,8 @@ class StarterWorkspaceSeeder
             'project_id' => $project->id,
             'parent_id' => $strategy->id,
             'sort_order' => 0,
-            'name' => 'Messaging review',
-            'description' => 'Refine homepage and launch copy.',
+            'name' => 'Try a template',
+            'description' => 'Save a sample plan and create a fresh copy from it.',
             'start_date' => now()->addDays(1)->startOfDay(),
             'end_date' => now()->addDays(3)->startOfDay(),
             'progress' => 0,
@@ -148,8 +148,8 @@ class StarterWorkspaceSeeder
             'project_id' => $project->id,
             'parent_id' => null,
             'sort_order' => 1,
-            'name' => 'Launch prep',
-            'description' => 'Prepare QA and release materials.',
+            'name' => 'Review timeline',
+            'description' => 'Open a focused timeline view for this project.',
             'start_date' => now()->addDays(6)->startOfDay(),
             'end_date' => now()->addDays(10)->startOfDay(),
             'progress' => 0,

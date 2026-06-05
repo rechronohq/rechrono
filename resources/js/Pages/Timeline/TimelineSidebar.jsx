@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronDown, ChevronRight, GripVertical, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, GripVertical, MoreHorizontal, Play, Square } from 'lucide-react';
 
 import { Checkbox } from '../../components/ui/checkbox';
 import { cn } from '../../lib/utils';
@@ -16,6 +16,7 @@ const TASK_ROW_BASE_PADDING = 10;
 export function TimelineSidebar({
     collapsedGroupIds,
     collapsedProjectIds,
+    currentTimer,
     drafts,
     focusedComposerParentId,
     hoveredTaskId,
@@ -34,6 +35,8 @@ export function TimelineSidebar({
     onSelectProject,
     onSetSingleSelection,
     onSubmitTask,
+    onStartTaskTimer,
+    onStopTaskTimer,
     onTaskClick,
     onDeleteProject,
     onDeleteTask,
@@ -642,12 +645,15 @@ export function TimelineSidebar({
                                     activeDragId={dragState.activeId}
                                     activeDragIds={dragState.activeIds}
                                     collapsedGroupIds={collapsedGroupIds}
+                                    currentTimer={currentTimer}
                                     dropPosition={dragState.activeId && dragState.overId === row.item.id ? dragState.position : null}
                                     item={row.item}
                                     itemHasChildren={itemHasChildren}
                                     hovered={hoveredTaskId === row.item.id}
                                     modifierStateRef={modifierStateRef}
                                     onOpenItem={handleRowClick}
+                                    onStartTimer={onStartTaskTimer}
+                                    onStopTimer={onStopTaskTimer}
                                     onPointerSelect={handleRowPointerDown}
                                     onToggleCompletion={onToggleTaskCompletion}
                                     onToggleGroupCollapse={onToggleGroupCollapse}
@@ -751,6 +757,7 @@ function DraggableTreeRow({
     activeDragId,
     activeDragIds,
     collapsedGroupIds,
+    currentTimer,
     dropPosition,
     actions,
     hovered,
@@ -760,6 +767,8 @@ function DraggableTreeRow({
     onOpenItem,
     onOpenMenu,
     onPointerSelect,
+    onStartTimer,
+    onStopTimer,
     onToggleCompletion,
     onToggleGroupCollapse,
     projectDepth,
@@ -772,6 +781,7 @@ function DraggableTreeRow({
     const hasChildren = itemHasChildren(item.id);
     const isGroup = item.kind === 'group';
     const activeSetIncludesItem = activeDragIds?.includes(item.id);
+    const isTimerRunning = currentTimer?.task_id === item.id && currentTimer?.is_running;
 
     return (
         <div
@@ -902,6 +912,31 @@ function DraggableTreeRow({
                     >
                         {item.name}
                     </span>
+                    {!isGroup && (onStartTimer || onStopTimer) ? (
+                        <button
+                            type="button"
+                            aria-label={isTimerRunning ? 'Stop timer' : 'Start timer'}
+                            title={isTimerRunning ? 'Stop timer' : 'Start timer'}
+                            data-marquee-ignore
+                            className={cn(
+                                'timeline-row-action-button inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-transparent opacity-0 pointer-events-none transition group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto',
+                                isTimerRunning
+                                    ? 'bg-blue-50 text-blue-700 opacity-100 pointer-events-auto hover:bg-blue-100'
+                                    : 'text-stone-400 hover:bg-stone-100 hover:text-stone-900',
+                            )}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                if (isTimerRunning) {
+                                    onStopTimer?.();
+                                } else {
+                                    onStartTimer?.(item);
+                                }
+                            }}
+                        >
+                            {isTimerRunning ? <Square className="h-3 w-3" /> : <Play className="h-3.5 w-3.5" />}
+                        </button>
+                    ) : null}
                     <RowActionControls
                         actions={actions}
                         className="ml-auto"

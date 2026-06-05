@@ -1,6 +1,6 @@
 import { useForm, usePage } from '@inertiajs/react';
 
-import AppShell from '@/Layouts/AppShell';
+import AppPage from '@/Layouts/AppPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -20,11 +20,11 @@ export default function ProfileEdit({ user }) {
     });
 
     return (
-        <AppShell title="Profile">
+        <AppPage title="Profile" activeApp="settings">
             <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-8">
                 <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
                     <div className="mb-6">
-                        <h1 className="text-2xl font-semibold tracking-[-0.04em] text-stone-950">Profile</h1>
+                        <h2 className="text-xl font-semibold text-stone-950">Account details</h2>
                         <p className="mt-1 text-sm text-stone-500">Update your identity details for the planner workspace.</p>
                     </div>
 
@@ -84,7 +84,7 @@ export default function ProfileEdit({ user }) {
                             <Input type="password" value={passwordForm.data.password_confirmation} onChange={(event) => passwordForm.setData('password_confirmation', event.target.value)} />
                         </div>
 
-                        <Button type="submit" disabled={passwordForm.processing}>Update password</Button>
+                        <Button type="submit" variant="outline" disabled={passwordForm.processing}>Update password</Button>
                     </form>
                 </section>
 
@@ -111,6 +111,6 @@ export default function ProfileEdit({ user }) {
                     </form>
                 </section>
             </div>
-        </AppShell>
+        </AppPage>
     );
 }

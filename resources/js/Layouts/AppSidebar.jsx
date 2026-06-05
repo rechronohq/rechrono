@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ChevronDown, LogOut, MoreHorizontal, Settings, UserCircle2 } from 'lucide-react';
+import { ChevronDown, LogOut, MoreHorizontal, Settings, Square, UserCircle2 } from 'lucide-react';
 
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -10,14 +10,44 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { request } from '@/lib/request';
+import { fetchCurrentTimer as fetchTimerRequest, stopCurrentTimer as stopTimerRequest } from '@/lib/timeTimer';
 import { cn } from '@/lib/utils';
 
-export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryApp, activePrimaryLabel }) {
+function elapsedSecondsForTimer(entry) {
+    if (!entry?.is_running) {
+        return 0;
+    }
+
+    const startedAt = Date.parse(entry.started_at);
+
+    if (Number.isNaN(startedAt)) {
+        return entry.duration_seconds ?? 0;
+    }
+
+    return Math.max(entry.duration_seconds ?? 0, Math.floor((Date.now() - startedAt) / 1000));
+}
+
+function formatElapsedTime(totalSeconds) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+export function AppSidebar({ groups, utilityApps = [], localNavigation, activeApp, activePrimaryApp, activePrimaryLabel }) {
     const { props } = usePage();
     const { auth, routes } = props;
     const timelineViews = props.timelineViews ?? [];
     const activeTimelineViewId = props.activeTimelineViewId ?? null;
     const [menuOpen, setMenuOpen] = useState(false);
+    const [currentTimer, setCurrentTimer] = useState(null);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [isStoppingTimer, setIsStoppingTimer] = useState(false);
     const menuRef = useRef(null);
 
     async function renameTimelineView(view) {
@@ -64,6 +94,82 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
 
         return () => window.removeEventListener('pointerdown', close);
     }, []);
+
+    useEffect(() => {
+        if (!routes.time?.current) {
+            setCurrentTimer(null);
+            setElapsedSeconds(0);
+
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        async function fetchCurrentTimer() {
+            try {
+                const entry = await fetchTimerRequest(routes);
+
+                if (!cancelled) {
+                    setCurrentTimer(entry);
+                    setElapsedSeconds(elapsedSecondsForTimer(entry));
+                }
+            } catch {
+                if (!cancelled) {
+                    setCurrentTimer(null);
+                    setElapsedSeconds(0);
+                }
+            }
+        }
+
+        function handleTimerChange(event) {
+            const entry = event.detail?.entry?.is_running ? event.detail.entry : null;
+            setCurrentTimer(entry);
+            setElapsedSeconds(elapsedSecondsForTimer(entry));
+        }
+
+        fetchCurrentTimer();
+        window.addEventListener('rechrono:timer-change', handleTimerChange);
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener('rechrono:timer-change', handleTimerChange);
+        };
+    }, [routes.time?.current]);
+
+    useEffect(() => {
+        if (!currentTimer?.is_running) {
+            setElapsedSeconds(0);
+
+            return undefined;
+        }
+
+        setElapsedSeconds(elapsedSecondsForTimer(currentTimer));
+
+        const intervalId = window.setInterval(() => {
+            setElapsedSeconds(elapsedSecondsForTimer(currentTimer));
+        }, 1000);
+
+        return () => window.clearInterval(intervalId);
+    }, [currentTimer]);
+
+    async function stopCurrentTimer(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!routes.time?.stopTimer || isStoppingTimer) {
+            return;
+        }
+
+        setIsStoppingTimer(true);
+
+        try {
+            const entry = await stopTimerRequest(routes);
+            setCurrentTimer(entry);
+            setElapsedSeconds(elapsedSecondsForTimer(entry));
+        } finally {
+            setIsStoppingTimer(false);
+        }
+    }
 
     const timelineViewsSection = timelineViews.length > 0 ? (
         <div className="mt-4 border-t border-stone-200 pt-4">
@@ -199,6 +305,67 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
             </nav>
 
             <div data-testid="app-shell-sidebar-bottom" className="app-shell-sidebar-bottom">
+                {currentTimer?.is_running ? (
+                    <div
+                        data-testid="app-shell-current-timer"
+                        className="mb-3 rounded-md border border-stone-200 bg-white p-2.5 shadow-sm"
+                    >
+                        <div className="flex items-start justify-between gap-2">
+                            <Link
+                                href={routes.apps?.timesheet ?? routes.apps?.planner ?? routes.planner}
+                                className="min-w-0 flex-1"
+                                title={currentTimer.task_name}
+                            >
+                                <span className="block truncate text-sm font-medium text-stone-950">
+                                    {currentTimer.task_name ?? 'Current task'}
+                                </span>
+                                <span className="mt-0.5 block truncate text-xs text-stone-500">
+                                    {currentTimer.project_name ?? 'No project'}
+                                </span>
+                                <span className="mt-1 block font-mono text-sm font-semibold tabular-nums text-stone-700">
+                                    {formatElapsedTime(elapsedSeconds)}
+                                </span>
+                            </Link>
+
+                            <button
+                                type="button"
+                                aria-label="Stop running timer"
+                                title="Stop timer"
+                                disabled={isStoppingTimer}
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-stone-200 bg-white text-stone-500 transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-950 disabled:pointer-events-none disabled:opacity-50"
+                                onClick={stopCurrentTimer}
+                            >
+                                <Square className="h-3 w-3 fill-current" />
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
+
+                {utilityApps.length > 0 ? (
+                    <nav aria-label="Utilities" data-testid="app-shell-sidebar-utilities" className="space-y-1">
+                        {utilityApps.map((app) => {
+                            const isActive = app.key === activePrimaryApp;
+
+                            return (
+                                <Link
+                                    key={app.key}
+                                    href={app.href}
+                                    aria-current={isActive ? 'page' : undefined}
+                                    className={cn(
+                                        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
+                                        isActive
+                                            ? 'bg-stone-100 font-medium text-stone-950'
+                                            : 'text-stone-600 hover:bg-stone-50 hover:text-stone-950',
+                                    )}
+                                >
+                                    <app.icon className="h-4 w-4" />
+                                    <span>{app.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                ) : null}
+
                 <div data-testid="app-shell-account" ref={menuRef} className="relative">
                     <button
                         type="button"

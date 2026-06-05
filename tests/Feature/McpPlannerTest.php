@@ -6,70 +6,168 @@ use App\Mcp\Tools\CompleteTask;
 use App\Mcp\Tools\CreateTask;
 use App\Mcp\Tools\ListProjects;
 use App\Mcp\Tools\ListTasks;
+use App\Mcp\Tools\ReadProject;
+use App\Mcp\Tools\ReorderTask;
 use App\Mcp\Tools\UpdateTask;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\User;
-use Database\Seeders\DemoDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
+use Laravel\Sanctum\Sanctum;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class McpPlannerTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected User $admin;
-
-    protected function setUp(): void
+    public function test_guest_cannot_post_to_mcp_endpoint(): void
     {
-        parent::setUp();
-
-        $this->seed(DemoDataSeeder::class);
-
-        $this->admin = User::factory()->admin()->create();
+        $this
+            ->postJson('/mcp/planner', [
+                'jsonrpc' => '2.0',
+                'id' => 1,
+                'method' => 'tools/list',
+            ])
+            ->assertUnauthorized();
     }
 
-    public function test_list_tools_return_seeded_planning_data(): void
+    public function test_read_token_lists_only_read_tools(): void
     {
-        $projects = app(ListProjects::class)->handle(new Request);
-        $tasks = app(ListTasks::class)->handle(new Request);
+        $team = Team::factory()->create(['slug' => 'mcp-team']);
+        $user = User::factory()->for($team)->create();
+        $token = $user->createToken('MCP read token', ['planner:read'])->plainTextToken;
 
-        $this->assertStringContainsString('Default Planning Board', (string) $projects->content());
-        $this->assertStringContainsString('Kickoff and scope', (string) $tasks->content());
+        $response = $this
+            ->withToken($token)
+            ->postJson('/mcp/planner', [
+                'jsonrpc' => '2.0',
+                'id' => 1,
+                'method' => 'tools/list',
+            ])
+            ->assertOk();
+
+        $toolNames = collect($response->json('result.tools'))->pluck('name');
+
+        $this->assertContains('list-projects', $toolNames);
+        $this->assertContains('list-tasks', $toolNames);
+        $this->assertContains('read-project', $toolNames);
+        $this->assertNotContains('create-task', $toolNames);
+        $this->assertNotContains('reorder-task', $toolNames);
+        $this->assertNotContains('update-task', $toolNames);
+        $this->assertNotContains('complete-task', $toolNames);
     }
 
-    public function test_create_update_and_complete_tools_manage_tasks(): void
+    public function test_list_tools_return_only_requested_team_data(): void
     {
-        $project = Project::query()->firstOrFail();
-        $dependency = Task::query()->where('project_id', $project->id)->firstOrFail();
-        $parent = Task::query()->where('project_id', $project->id)->whereNull('parent_id')->firstOrFail();
-        $assignee = $this->admin;
+        [$team, $otherTeam, $user] = $this->teamFixture();
+
+        Sanctum::actingAs($user, ['planner:read']);
+
+        $projects = app(ListProjects::class)->handle(new Request([
+            'team_slug' => $team->slug,
+        ]));
+        $tasks = app(ListTasks::class)->handle(new Request([
+            'team_slug' => $team->slug,
+        ]));
+
+        $this->assertStringContainsString('MCP Visible Project', (string) $projects->content());
+        $this->assertStringContainsString('MCP Visible Task', (string) $tasks->content());
+        $this->assertStringNotContainsString('Other Team Project', (string) $projects->content());
+        $this->assertStringNotContainsString('Other Team Task', (string) $tasks->content());
+    }
+
+    public function test_read_project_returns_requested_team_project_with_ordered_tasks(): void
+    {
+        [$team, $otherTeam, $user, $project] = $this->teamFixture();
+        Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Later sorted task',
+            'sort_order' => 20,
+        ]);
+        $firstTask = Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'First sorted task',
+            'sort_order' => 1,
+        ]);
+        $otherProject = Project::factory()->for($otherTeam)->create(['name' => 'Unreadable Other Project']);
+
+        Sanctum::actingAs($user, ['planner:read']);
+
+        $response = app(ReadProject::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'project_id' => $project->id,
+        ]));
+
+        $payload = json_decode((string) $response->content(), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame($project->id, $payload['project']['id']);
+        $this->assertSame($firstTask->id, $payload['project']['tasks'][0]['id']);
+
+        $this->expectException(ValidationException::class);
+
+        app(ReadProject::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'project_id' => $otherProject->id,
+        ]));
+    }
+
+    public function test_read_token_cannot_create_update_or_complete_tasks(): void
+    {
+        [$team, , $user, $project, $task] = $this->teamFixture();
+
+        Sanctum::actingAs($user, ['planner:read']);
+
+        $this->expectException(HttpException::class);
+
+        app(CreateTask::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'project_id' => $project->id,
+            'name' => 'Blocked MCP task',
+            'start_date' => '2026-04-01',
+            'end_date' => '2026-04-03',
+        ]));
+    }
+
+    public function test_write_token_create_update_and_complete_tools_manage_team_tasks(): void
+    {
+        [$team, , $user, $project, $task] = $this->teamFixture();
+        $parent = Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'MCP parent task',
+        ]);
+
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
 
         $createResponse = app(CreateTask::class)->handle(new Request([
+            'team_slug' => $team->slug,
             'project_id' => $project->id,
             'parent_id' => $parent->id,
             'name' => 'MCP created task',
             'start_date' => '2026-04-01',
             'end_date' => '2026-04-03',
-            'progress' => 15,
-            'dependency_id' => $dependency->id,
-            'assignee_user_id' => $assignee->id,
+            'dependency_id' => $task->id,
+            'assignee_user_id' => $user->id,
         ]));
 
         $this->assertStringContainsString('MCP created task', (string) $createResponse->content());
         $this->assertStringContainsString((string) $parent->id, (string) $createResponse->content());
-        $this->assertStringContainsString($assignee->name, (string) $createResponse->content());
+        $this->assertStringContainsString($user->name, (string) $createResponse->content());
 
         $task = Task::query()->where('name', 'MCP created task')->firstOrFail();
 
         app(UpdateTask::class)->handle(new Request([
+            'team_slug' => $team->slug,
             'task_id' => $task->id,
             'progress' => 65,
             'assignee_user_id' => null,
         ]));
 
         app(CompleteTask::class)->handle(new Request([
+            'team_slug' => $team->slug,
             'task_id' => $task->id,
         ]));
 
@@ -78,5 +176,87 @@ class McpPlannerTest extends TestCase
         $this->assertSame(100, $task->progress);
         $this->assertTrue($task->completed);
         $this->assertNull($task->assignee_user_id);
+    }
+
+    public function test_write_token_can_reorder_project_tasks(): void
+    {
+        [$team, , $user, $project] = $this->teamFixture();
+        $firstTask = Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'First reorder task',
+            'sort_order' => 1,
+        ]);
+        $secondTask = Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Second reorder task',
+            'sort_order' => 2,
+        ]);
+
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
+
+        $response = app(ReorderTask::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'project_id' => $project->id,
+            'task_id' => $secondTask->id,
+            'target_task_id' => $firstTask->id,
+            'position' => 'before',
+        ]));
+
+        $payload = json_decode((string) $response->content(), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame($secondTask->id, $payload['tasks'][0]['id']);
+        $this->assertSame(1, $payload['tasks'][0]['sort_order']);
+        $this->assertSame($firstTask->id, $payload['tasks'][1]['id']);
+        $this->assertSame(2, $payload['tasks'][1]['sort_order']);
+    }
+
+    public function test_write_tools_reject_cross_team_references(): void
+    {
+        [$team, $otherTeam, $user, $project] = $this->teamFixture();
+        $otherProject = Project::factory()->for($otherTeam)->create(['name' => 'Other Team Write Project']);
+        $otherTask = Task::factory()->create([
+            'project_id' => $otherProject->id,
+            'name' => 'Other Team Write Task',
+        ]);
+
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
+
+        $this->expectException(ValidationException::class);
+
+        app(CreateTask::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'project_id' => $project->id,
+            'parent_id' => $otherTask->id,
+            'name' => 'Invalid cross-team task',
+            'start_date' => '2026-04-01',
+            'end_date' => '2026-04-03',
+        ]));
+    }
+
+    /**
+     * @return array{0: Team, 1: Team, 2: User, 3: Project, 4: Task}
+     */
+    protected function teamFixture(): array
+    {
+        $team = Team::factory()->create(['slug' => 'mcp-team']);
+        $otherTeam = Team::factory()->create(['slug' => 'other-mcp-team']);
+        $user = User::factory()->for($team)->create(['name' => 'MCP User']);
+        $project = Project::factory()->for($team)->create(['name' => 'MCP Visible Project']);
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'MCP Visible Task',
+            'start_date' => '2026-03-01',
+            'end_date' => '2026-03-02',
+            'sort_order' => 10,
+        ]);
+        $otherProject = Project::factory()->for($otherTeam)->create(['name' => 'Other Team Project']);
+        Task::factory()->create([
+            'project_id' => $otherProject->id,
+            'name' => 'Other Team Task',
+            'start_date' => '2026-03-01',
+            'end_date' => '2026-03-02',
+        ]);
+
+        return [$team, $otherTeam, $user, $project, $task];
     }
 }

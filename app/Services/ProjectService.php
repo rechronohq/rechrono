@@ -17,6 +17,7 @@ class ProjectService
         return $team->projects()->create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'budget_hours' => $validated['budget_hours'] ?? null,
             'is_template' => false,
             'parent_id' => $parent?->id,
         ]);
@@ -29,6 +30,7 @@ class ProjectService
         $project->update([
             'name' => $validated['name'],
             'description' => array_key_exists('description', $validated) ? $validated['description'] : $project->description,
+            'budget_hours' => array_key_exists('budget_hours', $validated) ? $validated['budget_hours'] : $project->budget_hours,
             'parent_id' => $parent?->id,
         ]);
 
@@ -191,6 +193,7 @@ class ProjectService
                     : $this->duplicateName($sourceProject->name, Project::query()->where('team_id', $sourceProject->team_id)->pluck('name')->all())
             ),
             'description' => $sourceProject->description,
+            'budget_hours' => $sourceProject->budget_hours,
             'is_template' => $options['is_template'] ?? $sourceProject->is_template,
             'parent_id' => $options['forced_parent_id'] ?? $sourceProject->parent_id,
         ]);

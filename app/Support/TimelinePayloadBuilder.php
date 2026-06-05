@@ -8,6 +8,7 @@ use App\Models\Team;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class TimelinePayloadBuilder
 {
@@ -76,14 +77,23 @@ class TimelinePayloadBuilder
             ->get();
 
         $tasks = $this->filterTasksByAssignee($tasks, $selectedAssigneeFilters);
+        $projectActualSeconds = $team?->time_tracking_enabled
+            ? DB::table('time_entries')
+                ->select('project_id', DB::raw('sum(duration_seconds) as seconds'))
+                ->where('team_id', $team->id)
+                ->whereNotNull('ended_at')
+                ->groupBy('project_id')
+                ->pluck('seconds', 'project_id')
+            : collect();
 
         $childrenByParent = $tasks->groupBy('parent_id');
         $items = $this->flatten($childrenByParent, $tasks);
         [$rangeStart, $rangeEnd] = $this->dateRange($tasks);
 
         return [
-            'projects' => $allProjects->map(function (Project $project) use ($selectedProjectIds, $team): array {
+            'projects' => $allProjects->map(function (Project $project) use ($selectedProjectIds, $team, $projectActualSeconds): array {
                 $routeTeam = $team ?? $project->team;
+                $actualSeconds = (int) ($projectActualSeconds[$project->id] ?? 0);
 
                 return [
                     'id' => $project->id,
@@ -91,6 +101,8 @@ class TimelinePayloadBuilder
                     'description' => $project->description,
                     'is_active' => $project->is_active,
                     'is_template' => $project->is_template,
+                    'budget_hours' => $team?->time_tracking_enabled ? ($project->budget_hours === null ? null : (float) $project->budget_hours) : null,
+                    'actual_hours' => $team?->time_tracking_enabled ? round($actualSeconds / 3600, 2) : null,
                     'parent_id' => $project->parent_id,
                     'depth' => $project->parent_id ? 1 : 0,
                     'selected' => in_array($project->id, $selectedProjectIds, true),

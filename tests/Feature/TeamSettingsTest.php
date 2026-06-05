@@ -32,6 +32,20 @@ class TeamSettingsTest extends TestCase
                 ->where('teamSettingsRoutes.apiTokensStore', route('api-tokens.store', $owner->team)));
     }
 
+    public function test_owner_can_view_team_settings_sections(): void
+    {
+        $owner = $this->createTeamOwner();
+
+        foreach (['workspace-profile', 'modules', 'members', 'api-tokens'] as $section) {
+            $this->actingAs($owner)
+                ->get(route('team-settings.section', [$owner->team, $section]))
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page
+                    ->component('Team/Settings')
+                    ->where('activeSection', $section));
+        }
+    }
+
     public function test_owner_can_update_team_name_and_slug(): void
     {
         $owner = $this->createTeamOwner();
@@ -77,7 +91,7 @@ class TeamSettingsTest extends TestCase
             ->post(route('team-invites.store', $owner->team), [
                 'email' => 'new-member@example.com',
             ])
-            ->assertRedirect(route('team-settings.edit', $owner->team))
+            ->assertRedirect(route('team-settings.section', [$owner->team, 'members']))
             ->assertSessionHas('status', 'invite-sent');
 
         $invitation = TeamInvitation::query()->where('email', 'new-member@example.com')->first();
@@ -132,7 +146,7 @@ class TeamSettingsTest extends TestCase
 
         $this->actingAs($owner)
             ->delete(route('team-invites.destroy', [$owner->team, $invitation]))
-            ->assertRedirect(route('team-settings.edit', $owner->team))
+            ->assertRedirect(route('team-settings.section', [$owner->team, 'members']))
             ->assertSessionHas('status', 'invite-cancelled');
 
         $this->assertDatabaseMissing('team_invitations', ['id' => $invitation->id]);
@@ -145,7 +159,7 @@ class TeamSettingsTest extends TestCase
 
         $this->actingAs($owner)
             ->delete(route('team-members.destroy', [$owner->team, $member]))
-            ->assertRedirect(route('team-settings.edit', $owner->team))
+            ->assertRedirect(route('team-settings.section', [$owner->team, 'members']))
             ->assertSessionHas('status', 'member-removed');
 
         $this->assertDatabaseMissing('users', ['id' => $member->id]);
@@ -233,7 +247,7 @@ class TeamSettingsTest extends TestCase
                 'name' => 'Local integration',
                 'ability' => 'planner:read',
             ])
-            ->assertRedirect(route('team-settings.edit', $member->team))
+            ->assertRedirect(route('team-settings.section', [$member->team, 'api-tokens']))
             ->assertSessionHas('status', 'api-token-created')
             ->assertSessionHas('api_token_plain_text');
 
@@ -253,7 +267,7 @@ class TeamSettingsTest extends TestCase
 
         $this->actingAs($member)
             ->delete(route('api-tokens.destroy', [$member->team, $token->accessToken]))
-            ->assertRedirect(route('team-settings.edit', $member->team))
+            ->assertRedirect(route('team-settings.section', [$member->team, 'api-tokens']))
             ->assertSessionHas('status', 'api-token-revoked');
 
         $this->assertDatabaseMissing('personal_access_tokens', [
