@@ -14,6 +14,36 @@ export function formatFullDay(value) {
     }).format(new Date(`${value}T00:00:00`));
 }
 
+export function formatNavigatorDate(value) {
+    return new Intl.DateTimeFormat(undefined, {
+        weekday: 'long',
+        month: 'short',
+        day: '2-digit',
+    }).format(new Date(`${value}T00:00:00`));
+}
+
+export function formatShortDate(value) {
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+    }).format(new Date(`${value}T00:00:00`));
+}
+
+export function formatDateRange(weekStart) {
+    const start = new Date(`${weekStart}T00:00:00`);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    return `${formatShortDate(weekStart)} - ${formatShortDate(`${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`)}`;
+}
+
+export function formatNavigatorMonth(value) {
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'long',
+        year: 'numeric',
+    }).format(value);
+}
+
 export function formatWeekHours(value) {
     const number = Number(value ?? 0);
 
@@ -56,6 +86,16 @@ export function updateUrl(template, entryId) {
 
 export function dayUrl(template, day) {
     return template.replace('__DATE__', day);
+}
+
+export function weekUrlForDate(template, day) {
+    const date = new Date(`${day}T00:00:00`);
+    const mondayOffset = (date.getDay() + 6) % 7;
+    date.setDate(date.getDate() - mondayOffset);
+
+    const weekStart = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+    return template.replace(/week=[^&]*/, `week=${weekStart}`);
 }
 
 function formatTimeInput(date) {

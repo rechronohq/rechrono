@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Mcp\PlannerMcpContext;
 use App\Models\Project;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -14,10 +15,20 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsReadOnly]
 class ListProjects extends Tool
 {
+    public function __construct(
+        protected PlannerMcpContext $context,
+    ) {}
+
     public function handle(Request $request): Response
     {
-        $projects = Project::query()
+        $validated = $request->validate([
+            'team_slug' => ['required', 'string'],
+        ]);
+        $team = $this->context->teamForSlug($validated['team_slug'], 'planner:read');
+
+        $projects = $team->projects()
             ->withCount('tasks')
+            ->timelineVisible()
             ->orderBy('name')
             ->get()
             ->map(fn (Project $project): array => [
@@ -35,6 +46,13 @@ class ListProjects extends Tool
 
     public function schema(JsonSchema $schema): array
     {
-        return [];
+        return [
+            'team_slug' => $schema->string()->required(),
+        ];
+    }
+
+    public function shouldRegister(): bool
+    {
+        return $this->context->canUse('planner:read');
     }
 }

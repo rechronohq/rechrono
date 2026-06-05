@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { defaultDraft, isDraftActionDisabled, validateDraft } from './time';
+import { defaultDraft, formatDateRange, isDraftActionDisabled, validateDraft, weekUrlForDate } from './time';
 
 describe('timesheet default draft', () => {
     test('starts new entries as a running timer for the recent task', () => {
@@ -54,5 +54,15 @@ describe('timesheet default draft', () => {
 
         expect(isDraftActionDisabled(validDraft, false)).toBe(false);
         expect(isDraftActionDisabled(validDraft, true)).toBe(true);
+    });
+
+    test('builds week URLs from any selected date', () => {
+        expect(weekUrlForDate('/teams/acme/timesheet?view=week&week=__WEEK__', '2026-06-04')).toBe('/teams/acme/timesheet?view=week&week=2026-06-01');
+        expect(weekUrlForDate('/teams/acme/timesheet?view=week&week=2026-06-01', '2026-06-07')).toBe('/teams/acme/timesheet?view=week&week=2026-06-01');
+        expect(weekUrlForDate('/teams/acme/timesheet?view=week&week=2026-06-01', '2026-06-08')).toBe('/teams/acme/timesheet?view=week&week=2026-06-08');
+    });
+
+    test('formats week date ranges compactly', () => {
+        expect(formatDateRange('2026-06-01')).toBe('Jun 1 - Jun 7');
     });
 });

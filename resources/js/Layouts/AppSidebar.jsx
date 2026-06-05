@@ -39,7 +39,7 @@ function formatElapsedTime(totalSeconds) {
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryApp, activePrimaryLabel }) {
+export function AppSidebar({ groups, utilityApps = [], localNavigation, activeApp, activePrimaryApp, activePrimaryLabel }) {
     const { props } = usePage();
     const { auth, routes } = props;
     const timelineViews = props.timelineViews ?? [];
@@ -339,6 +339,31 @@ export function AppSidebar({ groups, localNavigation, activeApp, activePrimaryAp
                             </button>
                         </div>
                     </div>
+                ) : null}
+
+                {utilityApps.length > 0 ? (
+                    <nav aria-label="Utilities" data-testid="app-shell-sidebar-utilities" className="space-y-1">
+                        {utilityApps.map((app) => {
+                            const isActive = app.key === activePrimaryApp;
+
+                            return (
+                                <Link
+                                    key={app.key}
+                                    href={app.href}
+                                    aria-current={isActive ? 'page' : undefined}
+                                    className={cn(
+                                        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
+                                        isActive
+                                            ? 'bg-stone-100 font-medium text-stone-950'
+                                            : 'text-stone-600 hover:bg-stone-50 hover:text-stone-950',
+                                    )}
+                                >
+                                    <app.icon className="h-4 w-4" />
+                                    <span>{app.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
                 ) : null}
 
                 <div data-testid="app-shell-account" ref={menuRef} className="relative">

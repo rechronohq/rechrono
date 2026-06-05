@@ -1,11 +1,60 @@
-import { router, useForm, usePage } from '@inertiajs/react';
-import { Clock3, KeyRound, UsersRound } from 'lucide-react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 
 import AppPage from '@/Layouts/AppPage';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+
+const settingsSections = [
+    { id: 'workspace-profile', label: 'Workspace profile' },
+    { id: 'modules', label: 'Modules' },
+    { id: 'members', label: 'Members' },
+    { id: 'api-tokens', label: 'API tokens' },
+];
+
+function SettingsSectionNavigation({ activeSection, routes = {}, compact = false }) {
+    return (
+        <nav
+            aria-label="Team settings sections"
+            data-testid={compact ? 'team-settings-mobile-nav' : 'team-settings-subnav'}
+            className={cn(
+                compact
+                    ? 'flex gap-2 overflow-x-auto border-b border-stone-200 bg-white px-6 py-3 lg:hidden'
+                    : 'hidden w-56 flex-col border-r border-stone-200 bg-stone-50/60 px-3 py-5 lg:flex',
+            )}
+        >
+            {!compact ? (
+                <div className="px-3 pb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-400">
+                    Team settings
+                </div>
+            ) : null}
+            <div className={cn(compact ? 'flex gap-2' : 'space-y-1')}>
+                {settingsSections.map((section) => {
+                    const isActive = activeSection === section.id;
+
+                    return (
+                        <Link
+                            key={section.id}
+                            href={routes[section.id] ?? '#'}
+                            aria-current={isActive ? 'page' : undefined}
+                            className={cn(
+                                'whitespace-nowrap text-left text-sm transition',
+                                compact ? 'border-b px-0 py-1.5' : 'block border-l px-3 py-1.5',
+                                isActive
+                                    ? 'border-stone-950 font-medium text-stone-950'
+                                    : 'border-transparent text-stone-500 hover:text-stone-950',
+                            )}
+                        >
+                            {section.label}
+                        </Link>
+                    );
+                })}
+            </div>
+        </nav>
+    );
+}
 
 function memberLabel(member) {
     return member.type === 'invitation' ? member.email : member.name;
@@ -30,13 +79,14 @@ function formatTokenAccess(abilities) {
     return 'Read only';
 }
 
-export default function TeamSettings({ team, members, apiTokens = [], newApiToken = null, teamSettingsRoutes }) {
+export default function TeamSettings({ team, members, activeSection = 'workspace-profile', apiTokens = [], newApiToken = null, teamSettingsRoutes }) {
     const { auth, flash } = usePage().props;
     const isOwner = auth.team?.is_owner ?? false;
     const teamForm = useForm({
         name: team.name,
         slug: team.slug,
         time_tracking_enabled: Boolean(team.time_tracking_enabled),
+        section: activeSection,
     });
     const isTimeTrackingEnabled = Boolean(teamForm.data.time_tracking_enabled);
 
@@ -58,8 +108,34 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
         'api-token-revoked': 'API token revoked.',
     };
 
+    function updateTimeTracking(checked) {
+        const nextValue = Boolean(checked);
+
+        teamForm.setData('time_tracking_enabled', nextValue);
+        router.patch(teamSettingsRoutes.teamSettingsUpdate, {
+            name: teamForm.data.name,
+            slug: teamForm.data.slug,
+            time_tracking_enabled: nextValue,
+            section: 'modules',
+        }, {
+            preserveScroll: true,
+        });
+    }
+
+    const sectionNavigation = (
+        <SettingsSectionNavigation
+            activeSection={activeSection}
+            routes={teamSettingsRoutes.settingsSections}
+        />
+    );
+
     return (
-        <AppPage title="Team settings" activeApp="settings">
+        <AppPage title="Team settings" activeApp="settings" secondarySidebar={sectionNavigation}>
+            <SettingsSectionNavigation
+                activeSection={activeSection}
+                routes={teamSettingsRoutes.settingsSections}
+                compact
+            />
             <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
                 {flash?.status && statusMessages[flash.status] ? (
                     <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -67,37 +143,30 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                     </p>
                 ) : null}
 
-                <div>
-                    <h1 className="text-2xl font-semibold text-stone-950">Team settings</h1>
-                    <p className="mt-1 max-w-2xl text-sm text-stone-500">
-                        {isOwner
-                            ? 'Manage the workspace profile, members, integrations, and optional team modules.'
-                            : 'View your team details. Contact the owner to make changes.'}
-                    </p>
-                </div>
+                {activeSection === 'workspace-profile' ? (
+                    <form
+                        className="space-y-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            if (!isOwner) {
+                                return;
+                            }
 
-                <form
-                    className="space-y-4"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        if (!isOwner) {
-                            return;
-                        }
-
-                        teamForm.patch(teamSettingsRoutes.teamSettingsUpdate);
-                    }}
-                >
-                    <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
-                        <div className="mb-6">
-                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-400">Workspace</p>
-                            <h2 className="mt-2 text-xl font-semibold text-stone-950">Team profile</h2>
+                            teamForm.setData('section', activeSection);
+                            teamForm.patch(teamSettingsRoutes.teamSettingsUpdate);
+                        }}
+                    >
+                            <section className="space-y-6">
+                        <div>
+                            <h2 className="text-2xl font-semibold text-stone-950">Team profile</h2>
                             <p className="mt-1 text-sm text-stone-500">Core identity and URL settings for this team.</p>
                         </div>
 
-                        <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-stone-700">Team name</label>
+                                <label htmlFor="team-name" className="text-sm font-medium text-stone-700">Team name</label>
                                 <Input
+                                    id="team-name"
                                     value={teamForm.data.name}
                                     onChange={(event) => teamForm.setData('name', event.target.value)}
                                     disabled={!isOwner}
@@ -106,10 +175,11 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-stone-700">Team URL</label>
+                                <label htmlFor="team-slug" className="text-sm font-medium text-stone-700">Team URL</label>
                                 <div className="flex items-center gap-2">
                                     <span className="shrink-0 text-sm text-stone-400">/</span>
                                     <Input
+                                        id="team-slug"
                                         value={teamForm.data.slug}
                                         onChange={(event) => teamForm.setData('slug', event.target.value)}
                                         disabled={!isOwner}
@@ -121,122 +191,115 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                         </div>
                     </section>
 
-                    <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
-                        <div className="mb-6">
-                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-400">Configuration</p>
-                            <h2 className="mt-2 text-xl font-semibold text-stone-950">Modules</h2>
+                        {isOwner ? (
+                            <div className="flex justify-end">
+                                <Button type="submit" disabled={teamForm.processing}>Save team settings</Button>
+                            </div>
+                        ) : null}
+                    </form>
+                ) : null}
+
+                {activeSection === 'modules' ? (
+                    <section className="space-y-6">
+                        <div>
+                            <h2 className="text-2xl font-semibold text-stone-950">Modules</h2>
                             <p className="mt-1 text-sm text-stone-500">Turn optional team apps and workflows on or off.</p>
                         </div>
 
-                        <div className="rounded-md border border-blue-100 bg-blue-50/40 p-4">
-                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="flex items-start gap-3">
-                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-white text-blue-600 shadow-sm">
-                                        <Clock3 className="h-5 w-5" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <h3 className="text-base font-semibold text-stone-950">Time tracking</h3>
-                                            <span
-                                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                                    isTimeTrackingEnabled
-                                                        ? 'bg-emerald-50 text-emerald-700'
-                                                        : 'bg-stone-100 text-stone-600'
-                                                }`}
-                                            >
-                                                {isTimeTrackingEnabled ? 'Enabled' : 'Disabled'}
-                                            </span>
-                                        </div>
-                                        <p className="mt-1 max-w-2xl text-sm leading-6 text-stone-600">
-                                            Adds task timers, a Timesheet app, editable weekly entries, and project actuals against budget hours.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <label className="flex min-w-[180px] items-start gap-3 rounded-[6px] border border-stone-200 bg-white px-3 py-3 text-sm text-stone-700 shadow-sm">
-                                    <Checkbox
-                                        checked={teamForm.data.time_tracking_enabled}
-                                        onCheckedChange={(checked) => teamForm.setData('time_tracking_enabled', Boolean(checked))}
-                                        disabled={!isOwner}
-                                        aria-label="Enable time tracking"
-                                    />
-                                    <span>
-                                        <span className="block font-medium text-stone-900">
-                                            {isTimeTrackingEnabled ? 'Active' : 'Enable module'}
-                                        </span>
-                                        <span className="mt-0.5 block text-stone-500">
-                                            {isOwner ? 'Save to apply' : 'Owner only'}
+                        <div className="border-t border-stone-200">
+                            <label className="flex items-start gap-4 border-b border-stone-200 py-4">
+                                <Checkbox
+                                    checked={teamForm.data.time_tracking_enabled}
+                                    onCheckedChange={updateTimeTracking}
+                                    disabled={!isOwner}
+                                    aria-label="Enable time tracking"
+                                    className="mt-1"
+                                />
+                                <span className="min-w-0">
+                                    <span className="flex flex-wrap items-center gap-2">
+                                        <span className="text-base font-semibold text-stone-950">Time tracking</span>
+                                        <span
+                                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                                isTimeTrackingEnabled
+                                                    ? 'bg-emerald-50 text-emerald-700'
+                                                    : 'bg-stone-100 text-stone-600'
+                                            }`}
+                                        >
+                                            {isTimeTrackingEnabled ? 'Enabled' : 'Disabled'}
                                         </span>
                                     </span>
-                                </label>
-                            </div>
+                                    <span className="mt-1 block max-w-2xl text-sm leading-6 text-stone-600">
+                                        Adds task timers, a Timesheet app, editable weekly entries, and project actuals against budget hours.
+                                    </span>
+                                    {!isOwner ? (
+                                        <span className="mt-1 block text-sm text-stone-500">Owner only</span>
+                                    ) : null}
+                                </span>
+                            </label>
                         </div>
                     </section>
+                ) : null}
 
-                    {isOwner ? (
-                        <div className="flex justify-end">
-                            <Button type="submit" disabled={teamForm.processing}>Save team settings</Button>
-                        </div>
-                    ) : null}
-                </form>
-
-                <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
-                    <div className="mb-6 flex items-start gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-stone-100 text-stone-600">
-                            <UsersRound className="h-[18px] w-[18px]" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-semibold text-stone-950">Members</h2>
+                {activeSection === 'members' ? (
+                    <section className="space-y-6">
+                    <div>
+                            <h2 className="text-2xl font-semibold text-stone-950">Members</h2>
                             <p className="mt-1 text-sm text-stone-500">People who can access this team workspace.</p>
-                        </div>
                     </div>
 
-                    <ul className="divide-y divide-stone-100 rounded-md border border-stone-200">
-                        {members.map((member) => (
-                            <li key={`${member.type}-${member.id}`} className="flex items-center justify-between gap-4 px-4 py-3">
-                                <div className="min-w-0">
-                                    <p className="truncate font-medium text-stone-950">
-                                        {member.type === 'invitation' ? member.email : member.name}
-                                        {member.is_owner ? (
-                                            <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-xs font-medium text-stone-600">
-                                                Owner
-                                            </span>
-                                        ) : null}
-                                        {member.type === 'invitation' ? (
-                                            <span className="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
-                                                Invited
-                                            </span>
-                                        ) : null}
-                                    </p>
-                                    {member.type === 'member' ? (
-                                        <p className="truncate text-sm text-stone-500">{member.email}</p>
-                                    ) : (
-                                        <p className="truncate text-sm text-stone-500">Waiting to accept invitation</p>
-                                    )}
-                                </div>
-                                {isOwner && member.destroy_url ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={inviteForm.processing || teamForm.processing}
-                                        onClick={() => {
-                                            const action = member.type === 'invitation' ? 'Cancel invitation to' : 'Remove';
-                                            if (!window.confirm(`${action} ${memberLabel(member)}?`)) {
-                                                return;
-                                            }
+                    <div className="overflow-x-auto">
+                        <table aria-label="Team members" className="w-full border-collapse text-sm">
+                            <thead>
+                                <tr className="border-b border-stone-200 text-left text-xs font-semibold uppercase tracking-[0.08em] text-stone-400">
+                                    <th scope="col" className="py-2 pr-4">Name</th>
+                                    <th scope="col" className="px-4 py-2">Email</th>
+                                    <th scope="col" className="px-4 py-2">Status</th>
+                                    <th scope="col" className="py-2 pl-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-stone-100">
+                                {members.map((member) => (
+                                    <tr key={`${member.type}-${member.id}`}>
+                                        <td className="py-3 pr-4 font-medium text-stone-950">
+                                            {member.type === 'invitation' ? 'Invited member' : member.name}
+                                        </td>
+                                        <td className="px-4 py-3 text-stone-600">{member.email}</td>
+                                        <td className="px-4 py-3">
+                                            {member.is_owner ? (
+                                                <span className="text-stone-600">Owner</span>
+                                            ) : member.type === 'invitation' ? (
+                                                <span className="text-amber-700">Invited</span>
+                                            ) : (
+                                                <span className="text-stone-500">Member</span>
+                                            )}
+                                        </td>
+                                        <td className="py-3 pl-4 text-right">
+                                            {isOwner && member.destroy_url ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={inviteForm.processing || teamForm.processing}
+                                                    onClick={() => {
+                                                        const action = member.type === 'invitation' ? 'Cancel invitation to' : 'Remove';
+                                                        if (!window.confirm(`${action} ${memberLabel(member)}?`)) {
+                                                            return;
+                                                        }
 
-                                            router.delete(member.destroy_url, {
-                                                preserveScroll: true,
-                                            });
-                                        }}
-                                    >
-                                        {member.type === 'invitation' ? 'Cancel' : 'Remove'}
-                                    </Button>
-                                ) : null}
-                            </li>
-                        ))}
-                    </ul>
+                                                        router.delete(member.destroy_url, {
+                                                            preserveScroll: true,
+                                                        });
+                                                    }}
+                                                >
+                                                    {member.type === 'invitation' ? 'Cancel' : 'Remove'}
+                                                </Button>
+                                            ) : null}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
 
                     {isOwner ? (
                         <form
@@ -264,25 +327,22 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                                     />
                                     {inviteForm.errors.email ? <p className="text-sm text-rose-600">{inviteForm.errors.email}</p> : null}
                                 </div>
-                                <Button type="submit" disabled={inviteForm.processing} className="sm:mb-0">
+                                <Button type="submit" variant="outline" disabled={inviteForm.processing} className="sm:mb-0">
                                     Send invitation
                                 </Button>
                             </div>
                         </form>
                     ) : null}
-                </section>
+                    </section>
+                ) : null}
 
-                <section className="rounded-md border border-stone-200 bg-white p-6 shadow-sm">
-                    <div className="mb-6 flex items-start gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-stone-100 text-stone-600">
-                            <KeyRound className="h-[18px] w-[18px]" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-semibold text-stone-950">API tokens</h2>
+                {activeSection === 'api-tokens' ? (
+                    <section className="space-y-6">
+                    <div>
+                            <h2 className="text-2xl font-semibold text-stone-950">API tokens</h2>
                             <p className="mt-1 text-sm text-stone-500">
                                 Create personal tokens for API clients and integrations.
                             </p>
-                        </div>
                     </div>
 
                     {newApiToken ? (
@@ -331,7 +391,7 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                                 </Select>
                                 {apiTokenForm.errors.ability ? <p className="text-sm text-rose-600">{apiTokenForm.errors.ability}</p> : null}
                             </div>
-                            <Button type="submit" disabled={apiTokenForm.processing}>
+                            <Button type="submit" variant="outline" disabled={apiTokenForm.processing}>
                                 Create token
                             </Button>
                         </div>
@@ -368,7 +428,8 @@ export default function TeamSettings({ team, members, apiTokens = [], newApiToke
                             <li className="px-4 py-3 text-sm text-stone-500">No API tokens yet.</li>
                         )}
                     </ul>
-                </section>
+                    </section>
+                ) : null}
             </div>
         </AppPage>
     );

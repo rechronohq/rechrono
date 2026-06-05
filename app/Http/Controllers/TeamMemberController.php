@@ -19,6 +19,6 @@ class TeamMemberController extends Controller
 
         $user->delete();
 
-        return Redirect::route('team-settings.edit', $team)->with('status', 'member-removed');
+        return Redirect::route('team-settings.section', [$team, 'members'])->with('status', 'member-removed');
     }
 }

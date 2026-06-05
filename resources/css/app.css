@@ -269,7 +269,8 @@
         min-width: 0;
         flex: 1;
         flex-direction: column;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
     }
 
     .tasks-command-bar {

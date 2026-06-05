@@ -12,7 +12,28 @@ use Inertia\Response;
 
 class TeamSettingsController extends Controller
 {
+    private const DEFAULT_SECTION = 'workspace-profile';
+
+    private const SECTIONS = [
+        'workspace-profile',
+        'modules',
+        'members',
+        'api-tokens',
+    ];
+
     public function edit(Request $request, Team $team): Response
+    {
+        return $this->renderSettings($request, $team, self::DEFAULT_SECTION);
+    }
+
+    public function section(Request $request, Team $team, string $section): Response
+    {
+        abort_unless(in_array($section, self::SECTIONS, true), 404);
+
+        return $this->renderSettings($request, $team, $section);
+    }
+
+    private function renderSettings(Request $request, Team $team, string $activeSection): Response
     {
         $team->load(['users', 'pendingInvitations']);
 
@@ -56,6 +77,7 @@ class TeamSettingsController extends Controller
                 'time_tracking_enabled' => $team->time_tracking_enabled,
             ],
             'members' => $members->concat($invitations)->sortBy('email')->values()->all(),
+            'activeSection' => $activeSection,
             'apiTokens' => $request->user()
                 ? $request->user()->tokens()
                     ->orderByDesc('created_at')
@@ -73,6 +95,13 @@ class TeamSettingsController extends Controller
             'newApiToken' => $request->session()->get('api_token_plain_text'),
             'teamSettingsRoutes' => [
                 'teamSettingsUpdate' => route('team-settings.update', $team),
+                'settingsSections' => collect(self::SECTIONS)
+                    ->mapWithKeys(fn (string $section): array => [
+                        $section => $section === self::DEFAULT_SECTION
+                            ? route('team-settings.edit', $team)
+                            : route('team-settings.section', [$team, $section]),
+                    ])
+                    ->all(),
                 'teamInvitesStore' => route('team-invites.store', $team),
                 'apiTokensStore' => route('api-tokens.store', $team),
             ],
@@ -86,6 +115,12 @@ class TeamSettingsController extends Controller
 
         $team->update($validated);
 
-        return Redirect::route('team-settings.edit', $team)->with('status', 'team-updated');
+        $section = $request->input('section') === 'modules' ? 'modules' : self::DEFAULT_SECTION;
+
+        if ($section === self::DEFAULT_SECTION) {
+            return Redirect::route('team-settings.edit', $team)->with('status', 'team-updated');
+        }
+
+        return Redirect::route('team-settings.section', [$team, $section])->with('status', 'team-updated');
     }
 }

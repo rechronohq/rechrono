@@ -85,6 +85,7 @@ Route::prefix('{team:slug}')
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
         Route::get('/settings', [TeamSettingsController::class, 'edit'])->name('team-settings.edit');
+        Route::get('/settings/{section}', [TeamSettingsController::class, 'section'])->name('team-settings.section');
         Route::patch('/settings', [TeamSettingsController::class, 'update'])->name('team-settings.update');
         Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
         Route::delete('/settings/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import AppPage from '@/Layouts/AppPage';
 import { request } from '@/lib/request';
 import { startTaskTimer, stopCurrentTimer } from '@/lib/timeTimer';
 import { toAppPath } from '@/lib/url';
 import { cn } from '@/lib/utils';
+import { DateNavigator } from './DateNavigator';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
 import {
@@ -14,7 +14,6 @@ import {
     defaultDraft,
     elapsedSeconds,
     formatDay,
-    formatFullDay,
     formatWeekHours,
     isDraftActionDisabled,
     updateUrl,
@@ -214,38 +213,12 @@ export default function TimesheetIndex({ timesheet }) {
     }
 
     return (
-        <AppPage title="Timesheet" activeApp="timesheet" contextBar={false}>
+        <AppPage title="Timesheet" activeApp="timesheet">
             <div className="flex min-h-0 w-full flex-1 overflow-auto bg-white">
                 <div className="flex min-h-full w-full flex-col">
-                    <div className="w-full border-b border-stone-200 px-6 py-5">
-                        <h1 className="text-xl font-semibold text-stone-950">Timesheet</h1>
-                    </div>
-
                     <div className="mx-auto flex min-h-0 w-full max-w-[1180px] flex-1 flex-col px-6">
                         <div className="flex flex-wrap items-center justify-between gap-4 py-6">
-                            <div className="flex flex-wrap items-center gap-3">
-                                <div role="group" aria-label={isWeekView ? 'Week navigation' : 'Day navigation'} className="inline-flex overflow-hidden rounded-[6px] border border-stone-200 bg-white shadow-sm">
-                                    <button
-                                        type="button"
-                                        aria-label={isWeekView ? 'Previous week' : 'Previous day'}
-                                        className="flex h-10 w-10 items-center justify-center text-stone-600 transition hover:bg-stone-50 hover:text-stone-950"
-                                        onClick={() => router.visit(isWeekView ? timesheet.previous_week_url : timesheet.previous_day_url)}
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        aria-label={isWeekView ? 'Next week' : 'Next day'}
-                                        className="flex h-10 w-10 items-center justify-center border-l border-stone-200 text-stone-600 transition hover:bg-stone-50 hover:text-stone-950"
-                                        onClick={() => router.visit(isWeekView ? timesheet.next_week_url : timesheet.next_day_url)}
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </button>
-                                </div>
-                                <h2 className="text-3xl font-semibold tracking-[-0.04em] text-stone-950">
-                                    {isWeekView ? `Week of ${timesheet.week_start}` : formatFullDay(timesheet.selected_date)}
-                                </h2>
-                            </div>
+                            <DateNavigator isWeekView={isWeekView} timesheet={timesheet} />
                             <div role="group" aria-label="Timesheet view" className="inline-flex overflow-hidden rounded-[6px] border border-stone-200 bg-white shadow-sm">
                                 <button
                                     type="button"

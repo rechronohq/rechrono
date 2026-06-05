@@ -75,6 +75,7 @@ class TimesheetPayloadBuilderTest extends TestCase
 
     public function test_it_scopes_payload_to_member_entries_and_marks_editable_rows(): void
     {
+        CarbonImmutable::setTestNow('2026-06-04 07:30:00');
         [$team, $owner, $member, $task] = $this->seedTimedTask();
 
         TimeEntry::factory()->create([
@@ -108,6 +109,11 @@ class TimesheetPayloadBuilderTest extends TestCase
         $this->assertTrue($payload['day_entries'][0]['can_edit']);
         $this->assertSame(1.0, $payload['totals']['day_hours']);
         $this->assertSame($task->id, $payload['default_task_id']);
+        $this->assertSame('2026-06-04', $payload['current_date']);
+        $this->assertStringContainsString('date=2026-06-04', $payload['today_url']);
+        $this->assertStringContainsString('week=2026-06-01', $payload['this_week_url']);
+
+        CarbonImmutable::setTestNow();
     }
 
     private function seedTimedTask(): array

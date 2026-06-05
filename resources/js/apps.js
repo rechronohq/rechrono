@@ -1,4 +1,4 @@
-import { Clock, FolderKanban, LayoutDashboard } from 'lucide-react';
+import { Clock, FolderKanban, LayoutDashboard, Settings } from 'lucide-react';
 
 export const primaryAppDefinitions = [
     {
@@ -21,6 +21,13 @@ export const primaryAppDefinitions = [
         icon: Clock,
         group: 'management',
         href: (routes) => routes?.apps?.timesheet,
+    },
+    {
+        key: 'settings',
+        label: 'Settings',
+        icon: Settings,
+        group: 'utility',
+        href: (routes) => routes?.teamSettingsEdit,
     },
 ];
 
@@ -53,6 +60,7 @@ export function getAppChrome(routes, user, activeApp) {
             items: availablePrimaryApps.filter((definition) => definition.group === group.key),
         }))
         .filter((group) => group.items.length > 0);
+    const utilityApps = availablePrimaryApps.filter((definition) => definition.group === 'utility');
     const localNavigation = localNavigationDefinitions
         .filter((definition) => definition.parentKey === activePrimaryApp)
         .filter((definition) => !definition.adminOnly || isAdmin)
@@ -66,6 +74,7 @@ export function getAppChrome(routes, user, activeApp) {
         activePrimaryApp,
         activePrimaryLabel,
         groups,
+        utilityApps,
         localNavigation,
     };
 }

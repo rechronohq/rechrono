@@ -17,6 +17,7 @@ class TimesheetPayloadBuilder
     {
         $view = $request->query('view') === 'week' ? 'week' : 'day';
         $selectedDate = CarbonImmutable::parse($request->query('date', $request->query('week', now()->toDateString())));
+        $today = CarbonImmutable::parse(now()->toDateString());
         $weekStart = CarbonImmutable::parse($request->query('week', $selectedDate->toDateString()))->startOfWeek();
         $weekEnd = $weekStart->addDays(6)->endOfDay();
         $dayStart = $selectedDate->startOfDay();
@@ -45,11 +46,13 @@ class TimesheetPayloadBuilder
 
         return [
             'view' => $view,
+            'current_date' => $today->toDateString(),
             'week_start' => $weekStart->toDateString(),
             'selected_date' => $selectedDate->toDateString(),
             'previous_day_url' => route('timesheet.index', [$team, 'view' => 'day', 'date' => $selectedDate->subDay()->toDateString()]),
             'next_day_url' => route('timesheet.index', [$team, 'view' => 'day', 'date' => $selectedDate->addDay()->toDateString()]),
             'today_url' => route('timesheet.index', [$team, 'view' => 'day', 'date' => now()->toDateString()]),
+            'this_week_url' => route('timesheet.index', [$team, 'view' => 'week', 'week' => $today->startOfWeek()->toDateString()]),
             'day_url' => route('timesheet.index', [$team, 'view' => 'day', 'date' => '__DATE__']),
             'week_url' => route('timesheet.index', [$team, 'view' => 'week', 'week' => $weekStart->toDateString()]),
             'previous_week_url' => route('timesheet.index', [$team, 'view' => 'week', 'week' => $weekStart->subWeek()->toDateString()]),
