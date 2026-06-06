@@ -17,7 +17,7 @@ export function useTimelineDrag({
 
     useEffect(() => {
         function updateDependencyTarget(clientX, clientY, dragState) {
-            if (dragState.mode !== 'move' || dragState.originalTask.kind === 'group') {
+            if (dragState.mode !== 'move' || isSummaryTask(dragState.originalTask)) {
                 setDependencyDragState({
                     activeTaskId: null,
                     targetTaskId: null,
@@ -127,7 +127,7 @@ export function useTimelineDrag({
                 return;
             }
 
-            if (state.mode === 'move' && state.originalTask.kind !== 'group' && state.targetTaskId) {
+            if (state.mode === 'move' && !isSummaryTask(state.originalTask) && state.targetTaskId) {
                 const payload = await request(taskUrl(updateTaskUrlTemplate, task.project_id, task.id), {
                     method: 'PATCH',
                     body: JSON.stringify({
@@ -145,7 +145,7 @@ export function useTimelineDrag({
                 return;
             }
 
-            if (state.mode === 'move' && state.originalTask.kind !== 'group' && state.clearCandidate) {
+            if (state.mode === 'move' && !isSummaryTask(state.originalTask) && state.clearCandidate) {
                 const payload = await request(taskUrl(updateTaskUrlTemplate, task.project_id, task.id), {
                     method: 'PATCH',
                     body: JSON.stringify({
@@ -186,6 +186,7 @@ export function useTimelineDrag({
                     start_date: task.start,
                     end_date: task.end,
                     interaction: state.mode,
+                    timeline_delta_days: state.mode === 'move' ? state.deltaDays : undefined,
                     selected_project_ids: dataRef.current.selected_project_ids,
                     selected_assignee_filters: dataRef.current.selected_assignee_filters ?? [],
                     show_weekends: dataRef.current.show_weekends ?? false,
@@ -236,6 +237,10 @@ export function useTimelineDrag({
         },
         startDrag,
     };
+}
+
+function isSummaryTask(task) {
+    return task.kind === 'group' || Boolean(task.has_children);
 }
 
 function canSetDependency(dragState, targetTaskId) {

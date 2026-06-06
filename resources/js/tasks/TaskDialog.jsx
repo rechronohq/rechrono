@@ -42,6 +42,7 @@ export function TaskDialog({
     const fieldIdPrefix = showProject ? 'timeline-task' : 'project-task';
     const isTimerRunning = currentTimer?.task_id === value.id && currentTimer?.is_running;
     const canTrackTime = !isCreate && value.id && (onStartTimer || onStopTimer);
+    const datesAreChildDriven = taskDatesAreChildDriven({ mode, value });
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -141,6 +142,11 @@ export function TaskDialog({
                         </div>
 
                         <div className="border-t border-stone-200 pt-5">
+                            {datesAreChildDriven ? (
+                                <p className="mb-3 rounded-[6px] border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-600">
+                                    Dates are driven by this task&apos;s child tasks.
+                                </p>
+                            ) : null}
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-1.5">
                                     <Label htmlFor={`${fieldIdPrefix}-start`}>Start date</Label>
@@ -149,7 +155,7 @@ export function TaskDialog({
                                         type="date"
                                         value={value.start_date}
                                         onChange={(event) => onFieldChange('start_date', event.target.value)}
-                                        disabled={disabled}
+                                        disabled={disabled || datesAreChildDriven}
                                     />
                                 </div>
 
@@ -160,7 +166,7 @@ export function TaskDialog({
                                         type="date"
                                         value={value.end_date}
                                         onChange={(event) => onFieldChange('end_date', event.target.value)}
-                                        disabled={disabled}
+                                        disabled={disabled || datesAreChildDriven}
                                     />
                                 </div>
                             </div>
@@ -231,6 +237,10 @@ export function TaskDialog({
             </DialogContent>
         </Dialog>
     );
+}
+
+export function taskDatesAreChildDriven({ mode, value }) {
+    return mode !== 'create' && Boolean(value?.has_children);
 }
 
 function assigneeOptionValue(option) {

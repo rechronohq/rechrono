@@ -130,10 +130,6 @@ class Task extends Model
      */
     public function timelineDateRange(?Collection $allTasks = null): array
     {
-        if (! $this->isGroup()) {
-            return [$this->start_date, $this->end_date];
-        }
-
         $tasks = $allTasks ?? static::query()
             ->where('project_id', $this->project_id)
             ->get(['id', 'parent_id', 'start_date', 'end_date']);
@@ -141,7 +137,7 @@ class Task extends Model
             ->where('parent_id', $this->id);
 
         if ($primaryChild->isEmpty()) {
-            return [null, null];
+            return $this->isGroup() ? [null, null] : [$this->start_date, $this->end_date];
         }
 
         $descendantIds = [];
@@ -166,6 +162,10 @@ class Task extends Model
             if ($endDate === null || $task->end_date->gt($endDate)) {
                 $endDate = $task->end_date->copy();
             }
+        }
+
+        if ($startDate === null || $endDate === null) {
+            return $this->isGroup() ? [null, null] : [$this->start_date, $this->end_date];
         }
 
         return [$startDate, $endDate];

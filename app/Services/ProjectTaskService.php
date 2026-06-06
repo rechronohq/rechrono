@@ -71,6 +71,8 @@ class ProjectTaskService
         $originalStart = $task->start_date?->toDateString();
         $originalEnd = $task->end_date?->toDateString();
         $interaction = $validated['interaction'] ?? null;
+        $timelineDeltaDays = $validated['timeline_delta_days'] ?? null;
+        $showWeekends = $validated['show_weekends'] ?? true;
         $oldProjectId = $task->project_id;
         $oldParentId = $task->parent_id;
         $oldAncestorIds = $task->ancestorIds($allTasks);
@@ -95,9 +97,9 @@ class ProjectTaskService
             $this->assertGroupPayloadIsValid($validated, true, $interaction);
         }
 
-        $groupTimelineStart = $task->isGroup()
-            ? $task->timelineDateRange($project->tasks()->get(['id', 'project_id', 'parent_id', 'start_date', 'end_date']))[0]?->toDateString()
-            : null;
+        $summaryTimelineStart = $task->timelineDateRange(
+            $project->tasks()->get(['id', 'project_id', 'parent_id', 'start_date', 'end_date'])
+        )[0]?->toDateString();
 
         if (array_key_exists('assignee_user_id', $validated)) {
             $validated = [
@@ -160,7 +162,11 @@ class ProjectTaskService
         }
 
         if (in_array($interaction, ['move', 'dependency_set', 'dependency_clear'], true) && $effectiveStartDate && $effectiveEndDate) {
-            $this->shiftDescendants($task, $task->isGroup() ? $groupTimelineStart : $originalStart, $effectiveStartDate);
+            if ($interaction === 'move' && $timelineDeltaDays !== null) {
+                $this->shiftDescendantsByTimelineDays($task, (int) $timelineDeltaDays, (bool) $showWeekends);
+            } else {
+                $this->shiftDescendants($task, $summaryTimelineStart ?? $originalStart, $effectiveStartDate);
+            }
         }
 
         if (array_key_exists('completed', $validated)) {
@@ -344,6 +350,50 @@ class ProjectTaskService
                 'end_date' => $descendant->end_date->copy()->addDays($offset),
             ]);
         }
+    }
+
+    protected function shiftDescendantsByTimelineDays(Task $task, int $days, bool $showWeekends): void
+    {
+        if ($days === 0) {
+            return;
+        }
+
+        $descendants = Task::query()
+            ->whereIn('id', $task->descendantIds())
+            ->get();
+
+        foreach ($descendants as $descendant) {
+            if ($descendant->start_date === null || $descendant->end_date === null) {
+                continue;
+            }
+
+            $descendant->update([
+                'start_date' => $this->shiftTimelineDate($descendant->start_date->toDateString(), $days, $showWeekends),
+                'end_date' => $this->shiftTimelineDate($descendant->end_date->toDateString(), $days, $showWeekends),
+            ]);
+        }
+    }
+
+    protected function shiftTimelineDate(string $date, int $days, bool $showWeekends): string
+    {
+        $next = CarbonImmutable::parse($date);
+
+        if ($showWeekends) {
+            return $next->addDays($days)->toDateString();
+        }
+
+        $direction = $days > 0 ? 1 : -1;
+        $remaining = abs($days);
+
+        while ($remaining > 0) {
+            $next = $next->addDays($direction);
+
+            if (! $next->isWeekend()) {
+                $remaining--;
+            }
+        }
+
+        return $next->toDateString();
     }
 
     protected function assertGroupPayloadIsValid(array $validated, bool $partial = false, ?string $interaction = null): void

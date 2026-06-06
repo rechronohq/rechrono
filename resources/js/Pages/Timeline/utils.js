@@ -326,6 +326,7 @@ export function buildBars(rows, days, showWeekends = false, dimensions = DEFAULT
                 name: row.item.name,
                 completed: row.item.completed,
                 has_children: row.item.has_children,
+                is_summary: row.kind === 'group' || Boolean(row.item.has_children),
                 item: row.item,
                 rowIndex: index,
                 left,
