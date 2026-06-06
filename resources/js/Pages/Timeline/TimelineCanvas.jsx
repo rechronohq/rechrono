@@ -149,6 +149,7 @@ export function TimelineCanvas({
                                 const item = bar.item;
                                 const labelOutside = bar.width < (bar.name.length * LABEL_CHAR_WIDTH) + LABEL_INSIDE_PADDING;
                                 const isGroup = bar.kind === 'group';
+                                const isSummary = bar.is_summary;
 
                                 return (
                                     <React.Fragment key={bar.id}>
@@ -168,7 +169,7 @@ export function TimelineCanvas({
                                                 bar.has_children ? 'timeline-bar-parent' : 'timeline-bar-leaf',
                                                 isGroup && 'timeline-bar-group',
                                             )}
-                                            data-task-bar-id={isGroup ? undefined : bar.id}
+                                            data-task-bar-id={isSummary ? undefined : bar.id}
                                             style={{ left: `${bar.left}px`, top: `${bar.top}px`, width: `${bar.width}px`, height: `${barHeight}px` }}
                                             onPointerEnter={() => onHoverTaskChange(item.id)}
                                             onPointerLeave={() => onHoverTaskChange(null)}
@@ -177,13 +178,13 @@ export function TimelineCanvas({
                                             }}
                                             onClick={() => onTaskClick(item)}
                                         >
-                                            {!isGroup && (
+                                            {!isSummary && (
                                                 <button type="button" className="timeline-bar-handle timeline-bar-handle-left" onPointerDown={(event) => { event.stopPropagation(); onStartDrag(event, item, 'resize_left'); }} />
                                             )}
                                             <div className={cn('timeline-bar-label', isGroup && 'timeline-group-bar-label', labelOutside && 'timeline-bar-label-outside')}>
                                                 {bar.name}
                                             </div>
-                                            {!isGroup && (
+                                            {!isSummary && (
                                                 <button type="button" className="timeline-bar-handle timeline-bar-handle-right" onPointerDown={(event) => { event.stopPropagation(); onStartDrag(event, item, 'resize_right'); }} />
                                             )}
                                         </div>

@@ -110,6 +110,126 @@ class PlannerTest extends TestCase
         $this->assertSame(100, $task->fresh()->progress);
     }
 
+    public function test_timeline_parent_task_dates_are_derived_from_nested_tasks(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user->team)->create(['name' => 'Nested timeline project']);
+        $parent = Task::factory()->for($project)->create([
+            'name' => 'Parent task',
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+            'sort_order' => 1,
+        ]);
+        Task::factory()->for($project)->create([
+            'name' => 'Later child',
+            'parent_id' => $parent->id,
+            'start_date' => '2026-06-10',
+            'end_date' => '2026-06-12',
+            'sort_order' => 2,
+        ]);
+        Task::factory()->for($project)->create([
+            'name' => 'Earlier child',
+            'parent_id' => $parent->id,
+            'start_date' => '2026-06-04',
+            'end_date' => '2026-06-05',
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($user)
+            ->getJson(route('tasks.data', $user->team))
+            ->assertOk()
+            ->assertJsonPath('items.0.name', 'Parent task')
+            ->assertJsonPath('items.0.start', '2026-06-04')
+            ->assertJsonPath('items.0.end', '2026-06-12')
+            ->assertJsonPath('items.0.has_children', true);
+    }
+
+    public function test_moving_parent_task_shifts_nested_tasks_from_derived_start_date(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user->team)->create(['name' => 'Nested drag project']);
+        $parent = Task::factory()->for($project)->create([
+            'name' => 'Parent task',
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+            'sort_order' => 1,
+        ]);
+        $earlierChild = Task::factory()->for($project)->create([
+            'name' => 'Earlier child',
+            'parent_id' => $parent->id,
+            'start_date' => '2026-06-04',
+            'end_date' => '2026-06-05',
+            'sort_order' => 1,
+        ]);
+        $laterChild = Task::factory()->for($project)->create([
+            'name' => 'Later child',
+            'parent_id' => $parent->id,
+            'start_date' => '2026-06-10',
+            'end_date' => '2026-06-12',
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($user)
+            ->patchJson(route('projects.tasks.update', [$user->team, $project, $parent]), [
+                'start_date' => '2026-06-11',
+                'end_date' => '2026-06-19',
+                'interaction' => 'move',
+                'selected_project_ids' => [$project->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('items.0.start', '2026-06-11')
+            ->assertJsonPath('items.0.end', '2026-06-19');
+
+        $this->assertSame('2026-06-11', $earlierChild->fresh()->start_date->toDateString());
+        $this->assertSame('2026-06-12', $earlierChild->fresh()->end_date->toDateString());
+        $this->assertSame('2026-06-17', $laterChild->fresh()->start_date->toDateString());
+        $this->assertSame('2026-06-19', $laterChild->fresh()->end_date->toDateString());
+    }
+
+    public function test_moving_parent_task_across_hidden_weekend_shifts_children_by_visible_days(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user->team)->create(['name' => 'Weekend drag project']);
+        $parent = Task::factory()->for($project)->create([
+            'name' => 'Parent task',
+            'start_date' => '2026-06-05',
+            'end_date' => '2026-06-08',
+            'sort_order' => 1,
+        ]);
+        $fridayChild = Task::factory()->for($project)->create([
+            'name' => 'Friday child',
+            'parent_id' => $parent->id,
+            'start_date' => '2026-06-05',
+            'end_date' => '2026-06-05',
+            'sort_order' => 1,
+        ]);
+        $mondayChild = Task::factory()->for($project)->create([
+            'name' => 'Monday child',
+            'parent_id' => $parent->id,
+            'start_date' => '2026-06-08',
+            'end_date' => '2026-06-08',
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($user)
+            ->patchJson(route('projects.tasks.update', [$user->team, $project, $parent]), [
+                'start_date' => '2026-06-08',
+                'end_date' => '2026-06-09',
+                'interaction' => 'move',
+                'timeline_delta_days' => 1,
+                'show_weekends' => false,
+                'selected_project_ids' => [$project->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('items.0.start', '2026-06-08')
+            ->assertJsonPath('items.0.end', '2026-06-09');
+
+        $this->assertSame('2026-06-08', $fridayChild->fresh()->start_date->toDateString());
+        $this->assertSame('2026-06-08', $fridayChild->fresh()->end_date->toDateString());
+        $this->assertSame('2026-06-09', $mondayChild->fresh()->start_date->toDateString());
+        $this->assertSame('2026-06-09', $mondayChild->fresh()->end_date->toDateString());
+    }
+
     public function test_bulk_project_action_can_change_parent_for_multiple_projects(): void
     {
         $user = $this->seedPlannerDemo();

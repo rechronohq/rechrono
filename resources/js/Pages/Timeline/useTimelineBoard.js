@@ -58,6 +58,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
         start_date: '',
         end_date: '',
         completed: false,
+        has_children: false,
     });
     const [groupModalGroupId, setGroupModalGroupId] = useState(null);
     const [groupModalOpen, setGroupModalOpen] = useState(false);
@@ -515,6 +516,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
             start_date: task.start,
             end_date: task.end,
             completed: Boolean(task.completed),
+            has_children: Boolean(task.has_children),
         });
     }
 
@@ -530,6 +532,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
             start_date: '',
             end_date: '',
             completed: false,
+            has_children: false,
         });
     }
 
@@ -625,16 +628,21 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
 
         const assigneeUserId = taskModalForm.assignee_value ? Number(taskModalForm.assignee_value) : null;
 
-        await updateTask(task, {
+        const changes = {
             name: nextName,
             description: taskModalForm.description.trim() || null,
             project_id: taskModalForm.project_id,
             parent_id: taskModalForm.parent_id,
             assignee_user_id: assigneeUserId,
-            start_date: taskModalForm.start_date,
-            end_date: taskModalForm.end_date,
             completed: taskModalForm.completed,
-        });
+        };
+
+        if (!task.has_children) {
+            changes.start_date = taskModalForm.start_date;
+            changes.end_date = taskModalForm.end_date;
+        }
+
+        await updateTask(task, changes);
         closeTaskModal();
     }
 

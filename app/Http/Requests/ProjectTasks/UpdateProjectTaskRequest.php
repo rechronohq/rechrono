@@ -30,6 +30,8 @@ class UpdateProjectTaskRequest extends FormRequest
             'progress' => ['sometimes', 'integer', 'between:0,100'],
             'completed' => ['sometimes', 'boolean'],
             'interaction' => ['sometimes', 'string', 'in:move,resize_left,resize_right,dependency_set,dependency_clear'],
+            'timeline_delta_days' => ['sometimes', 'integer'],
+            'show_weekends' => ['sometimes', 'boolean'],
             'dependency_id' => ['sometimes', 'nullable', 'uuid', $this->teamTaskRule()],
             'assignee_user_id' => ['sometimes', 'nullable', 'integer', $this->teamUserRule()],
         ];
