@@ -1,4 +1,4 @@
-import { Clock, FolderKanban, LayoutDashboard, Settings } from 'lucide-react';
+import { Building2, Clock, FolderKanban, LayoutDashboard, Settings } from 'lucide-react';
 
 export const primaryAppDefinitions = [
     {
@@ -12,14 +12,21 @@ export const primaryAppDefinitions = [
         key: 'projects',
         label: 'Projects',
         icon: FolderKanban,
-        group: 'management',
+        group: 'apps',
         href: (routes) => routes?.apps?.projects ?? routes?.projects?.index ?? routes?.projectsApp,
+    },
+    {
+        key: 'clients',
+        label: 'Clients',
+        icon: Building2,
+        group: 'apps',
+        href: (routes) => routes?.apps?.clients ?? routes?.clients?.index,
     },
     {
         key: 'timesheet',
         label: 'Timesheet',
         icon: Clock,
-        group: 'management',
+        group: 'apps',
         href: (routes) => routes?.apps?.timesheet,
     },
     {
@@ -32,8 +39,7 @@ export const primaryAppDefinitions = [
 ];
 
 export const primaryGroupDefinitions = [
-    { key: 'apps', label: 'Apps' },
-    { key: 'management', label: 'Management' },
+    { key: 'apps', label: null },
 ];
 
 export const localNavigationDefinitions = [];

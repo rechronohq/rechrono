@@ -94,6 +94,7 @@ class TimelinePayloadBuilder
             'projects' => $allProjects->map(function (Project $project) use ($selectedProjectIds, $team, $projectActualSeconds): array {
                 $routeTeam = $team ?? $project->team;
                 $actualSeconds = (int) ($projectActualSeconds[$project->id] ?? 0);
+                $client = $project->effectiveClient();
 
                 return [
                     'id' => $project->id,
@@ -104,6 +105,8 @@ class TimelinePayloadBuilder
                     'budget_hours' => $team?->time_tracking_enabled ? ($project->budget_hours === null ? null : (float) $project->budget_hours) : null,
                     'actual_hours' => $team?->time_tracking_enabled ? round($actualSeconds / 3600, 2) : null,
                     'parent_id' => $project->parent_id,
+                    'client_id' => $client?->id,
+                    'client' => $client ? ['id' => $client->id, 'name' => $client->name] : null,
                     'depth' => $project->parent_id ? 1 : 0,
                     'selected' => in_array($project->id, $selectedProjectIds, true),
                     'destroy_url' => route('projects.destroy', [$routeTeam, $project]),
@@ -118,6 +121,11 @@ class TimelinePayloadBuilder
                 'id' => $project->id,
                 'name' => $project->name,
             ])->all(),
+            'client_options' => $team?->clients()
+                ->where('is_active', true)
+                ->get(['id', 'name'])
+                ->map(fn ($client): array => ['id' => $client->id, 'name' => $client->name])
+                ->all() ?? [],
             'selected_project_ids' => array_values($selectedProjectIds),
             'visible_project_ids' => $selectedProjects->pluck('id')->values()->all(),
             'collapsed_project_ids' => $collapsedProjectIds,

@@ -216,7 +216,7 @@ export function taskActionsForTask(task, handlers) {
     });
 }
 
-export function selectedTaskSelectionActions(tasks, handlers) {
+export function selectedTaskSelectionActions(tasks, handlers, assigneeOptions = []) {
     const count = tasks.length;
     const hasIncompleteTasks = tasks.some((task) => task.update_url && !task.completed);
     const hasCompletedTasks = tasks.some((task) => task.update_url && task.completed);
@@ -227,6 +227,17 @@ export function selectedTaskSelectionActions(tasks, handlers) {
     }
 
     return [
+        assigneeOptions.length > 0
+            ? {
+                id: 'assign-selected',
+                label: 'Assign selected',
+                children: assigneeOptions.map((option) => ({
+                    id: `assign-selected-${option.value ?? 'unassigned'}`,
+                    label: option.label,
+                    onSelect: () => handlers.onAssign(option.value),
+                })),
+            }
+            : null,
         hasIncompleteTasks
             ? {
                 id: 'mark-selected-complete',

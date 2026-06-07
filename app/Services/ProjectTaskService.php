@@ -193,6 +193,28 @@ class ProjectTaskService
         $this->structureService->reorder($project, $validated);
     }
 
+    public function bulkAssign(Project $project, array $validated): void
+    {
+        $tasks = $project->tasks()
+            ->whereIn('id', $validated['task_ids'])
+            ->get(['id', 'kind']);
+
+        if ($tasks->contains(fn (Task $task): bool => $task->isGroup())) {
+            throw ValidationException::withMessages([
+                'task_ids' => 'Groups cannot be assigned.',
+            ]);
+        }
+
+        DB::transaction(function () use ($project, $validated): void {
+            $project->tasks()
+                ->whereIn('id', $validated['task_ids'])
+                ->update([
+                    'assignee_user_id' => $validated['assignee_user_id'],
+                    'updated_at' => now(),
+                ]);
+        });
+    }
+
     public function duplicate(Project $project, Task $task): Task
     {
         return $this->duplicationService->duplicate($project, $task);

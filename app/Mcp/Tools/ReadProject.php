@@ -30,6 +30,8 @@ class ReadProject extends Tool
         $project = $this->context->projectForTeam($team, $validated['project_id']);
 
         $project->load([
+            'client',
+            'parent.client',
             'tasks' => fn ($query) => $query
                 ->orderBy('sort_order')
                 ->orderBy('start_date')
@@ -59,10 +61,14 @@ class ReadProject extends Tool
      */
     protected function projectPayload(Project $project): array
     {
+        $client = $project->effectiveClient();
+
         return [
             'id' => $project->id,
             'team_id' => $project->team_id,
             'parent_id' => $project->parent_id,
+            'client_id' => $client?->id,
+            'client' => $client ? ['id' => $client->id, 'name' => $client->name] : null,
             'name' => $project->name,
             'description' => $project->description,
             'is_template' => $project->is_template,

@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
                     'planner' => $team ? route('planner', $team) : route('login'),
                     'tasks' => $team ? route('planner', $team) : route('login'),
                     'projects' => $team ? route('projects.index', $team) : route('login'),
+                    'clients' => $team ? route('clients.index', $team) : route('login'),
                     'imports' => $team ? route('imports.index', $team) : route('login'),
                     ...($team?->time_tracking_enabled ? [
                         'timesheet' => route('timesheet.index', $team),
@@ -62,6 +63,10 @@ class HandleInertiaRequests extends Middleware
                     'create' => $team ? route('projects.create', $team) : route('login'),
                     'edit' => $team ? route('projects.edit', ['team' => $team, 'project' => '__PROJECT__']) : route('login'),
                     'index' => $team ? route('projects.index', $team) : route('login'),
+                ],
+                'clients' => [
+                    'index' => $team ? route('clients.index', $team) : route('login'),
+                    'store' => $team ? route('clients.store', $team) : route('login'),
                 ],
                 'imports' => [
                     'index' => $team ? route('imports.index', $team) : route('login'),

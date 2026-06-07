@@ -19,6 +19,7 @@ class Project extends Model
 
     protected $fillable = [
         'team_id',
+        'client_id',
         'name',
         'description',
         'budget_hours',
@@ -39,6 +40,11 @@ class Project extends Model
     protected static function booted(): void
     {
         static::saving(function (Project $project): void {
+            if ($project->parent_id !== null || $project->is_template) {
+                $project->client_id = null;
+            }
+
+            $project->validateClientOwnership();
             $project->validateHierarchy();
         });
 
@@ -52,6 +58,20 @@ class Project extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function effectiveClient(): ?Client
+    {
+        if ($this->parent_id === null) {
+            return $this->client;
+        }
+
+        return $this->parent?->client;
     }
 
     public function children(): HasMany
@@ -145,6 +165,24 @@ class Project extends Model
         if ($this->exists && $this->children()->exists()) {
             throw ValidationException::withMessages([
                 'parent_id' => 'A project with subprojects cannot become a subproject.',
+            ]);
+        }
+    }
+
+    public function validateClientOwnership(): void
+    {
+        if ($this->client_id === null) {
+            return;
+        }
+
+        $belongsToTeam = Client::query()
+            ->whereKey($this->client_id)
+            ->where('team_id', $this->team_id)
+            ->exists();
+
+        if (! $belongsToTeam) {
+            throw ValidationException::withMessages([
+                'client_id' => 'Selected client is invalid for this team.',
             ]);
         }
     }

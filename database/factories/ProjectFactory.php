@@ -22,6 +22,7 @@ class ProjectFactory extends Factory
             'team_id' => Team::query()->value('id') ?? Team::factory(),
             'name' => fake()->words(3, true).' plan',
             'description' => fake()->sentence(12),
+            'client_id' => null,
             'is_template' => false,
             'is_active' => true,
         ];

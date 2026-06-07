@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 export function ProjectsForm({
     className = '',
+    clientOptions = [],
     excludeProjectId = null,
     isSaving,
     onFieldChange,
@@ -55,6 +56,28 @@ export function ProjectsForm({
                                 placeholder="Website relaunch"
                                 disabled={isSaving}
                             />
+                        </div>
+
+                        <div className="projects-form__field">
+                            <Label htmlFor="projects-form-client">Client</Label>
+                            {value.parent_id ? (
+                                <p className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-600">
+                                    {projects.find((project) => project.id === value.parent_id)?.client?.name ?? 'Internal'}
+                                    <span className="ml-1 text-stone-400">(inherited from parent)</span>
+                                </p>
+                            ) : (
+                                <Select
+                                    id="projects-form-client"
+                                    value={value.client_id ?? ''}
+                                    onChange={(event) => onFieldChange('client_id', event.target.value)}
+                                    disabled={isSaving}
+                                >
+                                    <option value="">Internal</option>
+                                    {clientOptions.map((client) => (
+                                        <option key={client.id} value={client.id}>{client.name}</option>
+                                    ))}
+                                </Select>
+                            )}
                         </div>
 
                         <div className="projects-form__field">

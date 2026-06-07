@@ -134,6 +134,12 @@ export function ProjectsTable({ isSubmitting = false, rows, selectedIds, onProje
             },
         },
         {
+            accessorKey: 'client',
+            header: ({ column }) => <SortableHeader column={column}>Client</SortableHeader>,
+            cell: ({ row }) => row.original.client?.name ?? 'Internal',
+            sortingFn: (leftRow, rightRow) => (leftRow.original.client?.name ?? '').localeCompare(rightRow.original.client?.name ?? ''),
+        },
+        {
             accessorKey: 'start_date',
             header: ({ column }) => <SortableHeader column={column}>Start</SortableHeader>,
             cell: ({ row }) => formatDateDisplay(row.original.start_date),

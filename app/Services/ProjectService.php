@@ -18,6 +18,7 @@ class ProjectService
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'budget_hours' => $validated['budget_hours'] ?? null,
+            'client_id' => $parent === null ? ($validated['client_id'] ?? null) : null,
             'is_template' => false,
             'parent_id' => $parent?->id,
         ]);
@@ -25,12 +26,22 @@ class ProjectService
 
     public function update(Team $team, Project $project, array $validated): Project
     {
+        $inheritedClientId = $project->effectiveClient()?->id;
+        $wasSubproject = $project->parent_id !== null;
         $parent = $this->validatedParentProject($team, $validated['parent_id'] ?? null, $project);
+        $clientId = match (true) {
+            $project->is_template => null,
+            $parent !== null => null,
+            $wasSubproject => $inheritedClientId,
+            array_key_exists('client_id', $validated) => $validated['client_id'],
+            default => $project->client_id,
+        };
 
         $project->update([
             'name' => $validated['name'],
             'description' => array_key_exists('description', $validated) ? $validated['description'] : $project->description,
             'budget_hours' => array_key_exists('budget_hours', $validated) ? $validated['budget_hours'] : $project->budget_hours,
+            'client_id' => $clientId,
             'parent_id' => $parent?->id,
         ]);
 
@@ -72,6 +83,7 @@ class ProjectService
             return $this->duplicateProjectTree($template, [
                 'name' => $validated['name'],
                 'forced_parent_id' => $parent?->id,
+                'client_id' => $parent === null ? ($validated['client_id'] ?? null) : null,
                 'is_template' => false,
                 'clear_assignees' => true,
                 'reset_completion' => true,
@@ -175,16 +187,26 @@ class ProjectService
             }
         }
 
-        $team->projects()
-            ->whereIn('id', $projectIds)
-            ->update([
+        foreach ($projects as $project) {
+            $inheritedClientId = $project->effectiveClient()?->id;
+
+            $project->update([
                 'parent_id' => $parent?->id,
-                'updated_at' => now(),
+                'client_id' => $parent !== null
+                    ? null
+                    : ($project->parent_id !== null ? $inheritedClientId : $project->client_id),
             ]);
+        }
     }
 
     protected function duplicateProjectTree(Project $sourceProject, array $options = []): Project
     {
+        $isTemplate = $options['is_template'] ?? $sourceProject->is_template;
+        $parentId = $options['forced_parent_id'] ?? $sourceProject->parent_id;
+        $clientId = $isTemplate || $parentId !== null
+            ? null
+            : ($options['client_id'] ?? $sourceProject->effectiveClient()?->id);
+
         $projectCopy = Project::query()->create([
             'team_id' => $sourceProject->team_id,
             'name' => $options['name'] ?? (
@@ -194,8 +216,9 @@ class ProjectService
             ),
             'description' => $sourceProject->description,
             'budget_hours' => $sourceProject->budget_hours,
-            'is_template' => $options['is_template'] ?? $sourceProject->is_template,
-            'parent_id' => $options['forced_parent_id'] ?? $sourceProject->parent_id,
+            'client_id' => $clientId,
+            'is_template' => $isTemplate,
+            'parent_id' => $parentId,
         ]);
 
         $tasks = Task::query()
@@ -237,6 +260,7 @@ class ProjectService
         $copy = Task::query()->create([
             'project_id' => $projectId,
             'parent_id' => $parentId,
+            'kind' => $sourceTask->kind,
             'name' => ($options['preserve_names'] ?? false)
                 ? $sourceTask->name
                 : $this->duplicateName(

@@ -18,6 +18,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { toAppPath } from '../../lib/url';
 
 export function ProjectEditorDialog({
+    clientOptions = [],
     isSaving,
     onClose,
     onArchive,
@@ -116,6 +117,28 @@ export function ProjectEditorDialog({
                                         placeholder="Project name"
                                         disabled={isSaving}
                                     />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="project-editor-client">Client</Label>
+                                    {value.parent_id ? (
+                                        <p className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-600">
+                                            {projects.find((candidate) => candidate.id === value.parent_id)?.client?.name ?? 'Internal'}
+                                            <span className="ml-1 text-stone-400">(inherited from parent)</span>
+                                        </p>
+                                    ) : (
+                                        <Select
+                                            id="project-editor-client"
+                                            value={value.client_id ?? ''}
+                                            onChange={(event) => onFieldChange('client_id', event.target.value)}
+                                            disabled={isSaving || project.is_template}
+                                        >
+                                            <option value="">Internal</option>
+                                            {clientOptions.map((client) => (
+                                                <option key={client.id} value={client.id}>{client.name}</option>
+                                            ))}
+                                        </Select>
+                                    )}
                                 </div>
 
                                 <div className="space-y-1.5">

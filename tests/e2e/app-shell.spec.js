@@ -43,12 +43,12 @@ test('shows the shared app shell structure on tasks', async ({ page }) => {
     await expect(timelineHeader).toBeVisible();
     await expect(sidebar.getByText('Rechrono')).toBeVisible();
     await expect(sidebar.getByRole('navigation', { name: 'Sidebar' })).toBeVisible();
-    await expect(sidebar.getByText('Apps')).toBeVisible();
-    await expect(sidebar.getByText('Management')).toBeVisible();
+    await expect(sidebar.getByText('Apps')).toHaveCount(0);
+    await expect(sidebar.getByText('Management')).toHaveCount(0);
     await expect(sidebar.getByText('Admin')).toHaveCount(0);
     await expect(sidebar.getByRole('link', { name: 'Timeline' })).toHaveAttribute('aria-current', 'page');
     await expect(sidebar.getByRole('link', { name: 'Projects' })).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: 'Clients' })).toHaveCount(0);
+    await expect(sidebar.getByRole('link', { name: 'Clients' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Timesheets' })).toHaveCount(0);
     await expect(sidebar.getByRole('link', { name: 'Invoices' })).toHaveCount(0);
     await expect(sidebarMiddle.getByRole('link', { name: 'Settings' })).toHaveCount(0);

@@ -61,15 +61,21 @@ describe('project task view helpers', () => {
 
     test('builds selected task actions from task capabilities', () => {
         const actions = selectedTaskSelectionActions(taskGroups[0].tasks.filter((task) => task.kind !== 'group'), {
+            onAssign: () => {},
             onDelete: () => {},
             onMarkComplete: () => {},
             onMarkIncomplete: () => {},
-        });
+        }, [
+            { value: null, label: 'Unassigned' },
+            { value: 1, label: 'Ada' },
+        ]);
 
         expect(actions.map((action) => action.id)).toEqual([
+            'assign-selected',
             'mark-selected-complete',
             'mark-selected-incomplete',
             'delete-selected',
         ]);
+        expect(actions[0].children.map((action) => action.label)).toEqual(['Unassigned', 'Ada']);
     });
 });

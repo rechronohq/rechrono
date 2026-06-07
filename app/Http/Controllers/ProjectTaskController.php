@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ProjectTasks\BulkAssignProjectTasksRequest;
 use App\Http\Requests\ProjectTasks\ReorderProjectTaskRequest;
 use App\Http\Requests\ProjectTasks\StoreProjectTaskRequest;
 use App\Http\Requests\ProjectTasks\UpdateProjectTaskRequest;
@@ -41,6 +42,13 @@ class ProjectTaskController extends Controller
         return response()->json($this->timelinePayload($request, $project));
     }
 
+    public function bulkAssign(BulkAssignProjectTasksRequest $request, Team $team, Project $project): JsonResponse
+    {
+        $this->projectTaskService->bulkAssign($project, $request->validated());
+
+        return response()->json(['updated' => true]);
+    }
+
     public function duplicate(Request $request, Team $team, Project $project, Task $task): JsonResponse
     {
         $this->projectTaskService->duplicate($project, $task);
@@ -67,7 +75,7 @@ class ProjectTaskController extends Controller
             ->values();
 
         $team = $this->currentTeam($request);
-        $allProjects = $team->projects()->timelineVisible()->orderBy('name')->get();
+        $allProjects = $team->projects()->with(['client', 'parent.client'])->timelineVisible()->orderBy('name')->get();
         $visibleProjectIds = Project::expandSelectedIds($allProjects, $selectedProjectIds->all());
         $selectedProjects = $allProjects
             ->whereIn('id', $visibleProjectIds)

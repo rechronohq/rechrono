@@ -126,6 +126,34 @@ test('only the project name opens the project detail page', async ({ page }) => 
     await expect(page.getByTestId('project-detail-actions').getByRole('link', { name: 'Timeline' })).toHaveCount(0);
 });
 
+test('project pages use the shared page region as their vertical scroller', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 600 });
+    await login(page);
+
+    await page.goto('/projects');
+
+    await expect(page.locator('.app-shell-page')).toHaveCSS('overflow-y', 'auto');
+    await expect(page.locator('.projects-app-page')).toHaveCSS('overflow-y', 'visible');
+
+    await page.getByRole('link', { name: 'Demo Workspace' }).click();
+
+    await expect(page.locator('.app-shell-page')).toHaveCSS('overflow-y', 'auto');
+    await expect(page.locator('.projects-detail-page')).toHaveCSS('overflow-y', 'visible');
+
+    const sharedPage = page.locator('.app-shell-page');
+    const sharedPageBox = await sharedPage.boundingBox();
+    const detailPageBox = await page.locator('.projects-detail-page').boundingBox();
+
+    expect(sharedPageBox).not.toBeNull();
+    expect(detailPageBox).not.toBeNull();
+    expect(sharedPageBox.x + sharedPageBox.width).toBeGreaterThan(detailPageBox.x + detailPageBox.width);
+
+    await page.mouse.move(sharedPageBox.x + sharedPageBox.width - 8, sharedPageBox.y + 100);
+    await page.mouse.wheel(0, 500);
+
+    await expect.poll(() => sharedPage.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+});
+
 test('projects table exposes timeline-style project actions from the row menu', async ({ page }) => {
     await login(page);
 
@@ -192,6 +220,7 @@ test('projects page can delete multiple selected projects', async ({ page }) => 
 
     await page.getByRole('button', { name: 'Bulk actions' }).click();
     await expect(page.getByRole('menuitem', { name: 'Move selected' })).toHaveCount(0);
+    page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('menuitem', { name: 'Delete selected' }).click();
 
     await expect(page.getByRole('row', { name: /Bulk Child Board A/ })).toHaveCount(0);
@@ -585,6 +614,51 @@ test('project detail can mark selected completed tasks incomplete from bulk acti
     await expect(page.getByRole('menuitem', { name: 'Mark complete' })).toBeVisible();
 });
 
+test('project detail can bulk assign and unassign selected tasks', async ({ page }) => {
+    await login(page);
+
+    await page.goto('/projects');
+    await page.getByRole('row', { name: /Demo Workspace/ }).getByRole('link', { name: 'Demo Workspace' }).click();
+
+    const scenarioRow = page.locator('.projects-detail-task').filter({ hasText: 'Review the schedule' });
+    const launchRow = page.locator('.projects-detail-task').filter({ hasText: 'Share the plan' });
+
+    await scenarioRow.hover();
+    await scenarioRow.getByRole('checkbox', { name: 'Select Review the schedule' }).click();
+    await launchRow.hover();
+    await launchRow.getByRole('checkbox', { name: 'Select Share the plan' }).click();
+
+    await page.getByRole('button', { name: '2 selected' }).click();
+    await page.getByRole('menuitem', { name: 'Assign selected' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await page.getByRole('menuitem', { name: 'E2E User' }).click();
+
+    const assignedGroup = page.locator('.projects-detail-assignee').filter({
+        has: page.getByRole('heading', { name: 'E2E User' }),
+    });
+    await expect(assignedGroup.getByRole('heading', { name: 'Review the schedule' })).toBeVisible();
+    await expect(assignedGroup.getByRole('heading', { name: 'Share the plan' })).toBeVisible();
+
+    for (const row of [
+        assignedGroup.locator('.projects-detail-task').filter({ hasText: 'Review the schedule' }),
+        assignedGroup.locator('.projects-detail-task').filter({ hasText: 'Share the plan' }),
+    ]) {
+        await row.hover();
+        await row.getByRole('checkbox', { name: /^Select / }).click();
+    }
+
+    await page.getByRole('button', { name: '2 selected' }).click();
+    await page.getByRole('menuitem', { name: 'Assign selected' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await page.getByRole('menuitem', { name: 'Unassigned' }).click();
+
+    const unassignedGroup = page.locator('.projects-detail-assignee').filter({
+        has: page.getByRole('heading', { name: 'Unassigned' }),
+    });
+    await expect(unassignedGroup.getByRole('heading', { name: 'Review the schedule' })).toBeVisible();
+    await expect(unassignedGroup.getByRole('heading', { name: 'Share the plan' })).toBeVisible();
+});
+
 test('project detail shows contextual actions for selected tasks', async ({ page }) => {
     await login(page);
 
@@ -603,6 +677,7 @@ test('project detail shows contextual actions for selected tasks', async ({ page
 
     await frontendRow.click({ button: 'right' });
 
+    await expect(page.getByRole('menuitem', { name: 'Assign selected' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Mark 2 complete' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Delete 2' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Edit' })).toHaveCount(0);

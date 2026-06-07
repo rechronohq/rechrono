@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\TimelineView;
 use App\Models\User;
 use Database\Seeders\DemoDataSeeder;
@@ -27,7 +28,11 @@ class PlannerTest extends TestCase
         $this->assertTrue(Schema::hasColumns('tasks', ['assignee_user_id']));
         $this->assertFalse(Schema::hasColumn('tasks', 'assignee_type'));
 
-        foreach (['clients', 'invoices', 'billable_items', 'company_profiles'] as $table) {
+        $this->assertTrue(Schema::hasTable('clients'));
+        $this->assertTrue(Schema::hasTable('client_contacts'));
+        $this->assertTrue(Schema::hasColumn('projects', 'client_id'));
+
+        foreach (['invoices', 'billable_items', 'company_profiles'] as $table) {
             $this->assertFalse(Schema::hasTable($table));
         }
 
@@ -36,7 +41,7 @@ class PlannerTest extends TestCase
         $this->assertTrue(Route::has('planner'));
         $this->assertTrue(Route::has('projects.index'));
         $this->assertTrue(Route::has('timesheet.index'));
-        $this->assertFalse(Route::has('clients.index'));
+        $this->assertTrue(Route::has('clients.index'));
         $this->assertFalse(Route::has('timesheets'));
         $this->assertFalse(Route::has('invoices.index'));
 
@@ -54,7 +59,7 @@ class PlannerTest extends TestCase
                 ->component('Tasks/Index')
                 ->where('routes.apps.planner', route('planner', $user->team))
                 ->where('routes.apps.projects', route('projects.index', $user->team))
-                ->missing('routes.apps.clients')
+                ->where('routes.apps.clients', route('clients.index', $user->team))
                 ->missing('routes.apps.timesheets')
                 ->missing('routes.apps.invoices')
                 ->has('timelineData.projects')
@@ -66,7 +71,7 @@ class PlannerTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Projects/Index')
                 ->has('projects.rows')
-                ->missing('projects.rows.0.client')
+                ->has('projects.rows.0.client')
                 ->missing('projects.rows.0.budget'));
     }
 
@@ -282,6 +287,75 @@ class PlannerTest extends TestCase
         $this->assertDatabaseMissing('projects', ['id' => $secondProject->id]);
         $this->assertDatabaseMissing('tasks', ['id' => $firstTask->id]);
         $this->assertDatabaseMissing('tasks', ['id' => $dependentTask->id]);
+    }
+
+    public function test_bulk_task_assignment_updates_project_tasks_atomically(): void
+    {
+        $team = Team::factory()->create();
+        $user = User::factory()->for($team)->create();
+        $assignee = User::factory()->for($team)->create();
+        $project = Project::factory()->for($team)->create();
+        $firstTask = Task::factory()->create(['project_id' => $project->id]);
+        $secondTask = Task::factory()->create(['project_id' => $project->id]);
+
+        $this->actingAs($user)
+            ->postJson(route('projects.tasks.bulk-assign', [$team, $project]), [
+                'task_ids' => [$firstTask->id, $secondTask->id],
+                'assignee_user_id' => $assignee->id,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('tasks', ['id' => $firstTask->id, 'assignee_user_id' => $assignee->id]);
+        $this->assertDatabaseHas('tasks', ['id' => $secondTask->id, 'assignee_user_id' => $assignee->id]);
+
+        $this->actingAs($user)
+            ->postJson(route('projects.tasks.bulk-assign', [$team, $project]), [
+                'task_ids' => [$firstTask->id, $secondTask->id],
+                'assignee_user_id' => null,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('tasks', ['id' => $firstTask->id, 'assignee_user_id' => null]);
+        $this->assertDatabaseHas('tasks', ['id' => $secondTask->id, 'assignee_user_id' => null]);
+    }
+
+    public function test_bulk_task_assignment_rejects_invalid_tasks_and_assignees(): void
+    {
+        $team = Team::factory()->create();
+        $user = User::factory()->for($team)->create();
+        $project = Project::factory()->for($team)->create();
+        $task = Task::factory()->create(['project_id' => $project->id]);
+        $group = Task::factory()->create([
+            'project_id' => $project->id,
+            'kind' => Task::KIND_GROUP,
+            'start_date' => null,
+            'end_date' => null,
+        ]);
+        $otherTeam = Team::factory()->create();
+        $otherAssignee = User::factory()->for($otherTeam)->create();
+        $otherProject = Project::factory()->for($otherTeam)->create();
+        $otherTask = Task::factory()->create(['project_id' => $otherProject->id]);
+
+        $this->actingAs($user)
+            ->postJson(route('projects.tasks.bulk-assign', [$team, $project]), [
+                'task_ids' => [$task->id, $otherTask->id],
+                'assignee_user_id' => null,
+            ])
+            ->assertJsonValidationErrors('task_ids.1');
+
+        $this->actingAs($user)
+            ->postJson(route('projects.tasks.bulk-assign', [$team, $project]), [
+                'task_ids' => [$task->id],
+                'assignee_user_id' => $otherAssignee->id,
+            ])
+            ->assertJsonValidationErrors('assignee_user_id');
+
+        $this->actingAs($user)
+            ->postJson(route('projects.tasks.bulk-assign', [$team, $project]), [
+                'task_ids' => [$group->id],
+                'assignee_user_id' => null,
+            ])
+            ->assertUnprocessable();
     }
 
     public function test_project_detail_includes_tasks_grouped_by_assignee(): void

@@ -9,6 +9,9 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import AppPage from "@/Layouts/AppPage";
@@ -262,6 +265,33 @@ export default function ProjectsShow({ project }) {
                     body: JSON.stringify({ completed }),
                 });
             }
+
+            setSelectedTaskIds([]);
+            router.reload({ preserveScroll: true });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    async function handleSelectedTasksAssignment(assigneeUserId) {
+        const taskIds = selectedTaskRecords()
+            .filter((task) => task.update_url)
+            .map((task) => task.id);
+
+        if (taskIds.length === 0 || isSubmitting) {
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            await request(toAppPath(project.bulk_assign_tasks_url), {
+                method: "POST",
+                body: JSON.stringify({
+                    task_ids: taskIds,
+                    assignee_user_id: assigneeUserId,
+                }),
+            });
 
             setSelectedTaskIds([]);
             router.reload({ preserveScroll: true });
@@ -613,6 +643,30 @@ export default function ProjectsShow({ project }) {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <DropdownMenuSub>
+                                                <DropdownMenuSubTrigger>
+                                                    Assign selected
+                                                </DropdownMenuSubTrigger>
+                                                <DropdownMenuSubContent>
+                                                    {(project.assignee_options ?? []).map(
+                                                        (option) => (
+                                                            <DropdownMenuItem
+                                                                key={
+                                                                    option.value ??
+                                                                    "unassigned"
+                                                                }
+                                                                onSelect={() =>
+                                                                    handleSelectedTasksAssignment(
+                                                                        option.value,
+                                                                    )
+                                                                }
+                                                            >
+                                                                {option.label}
+                                                            </DropdownMenuItem>
+                                                        ),
+                                                    )}
+                                                </DropdownMenuSubContent>
+                                            </DropdownMenuSub>
                                             {selectedTasksMatchingCompletion(
                                                 false,
                                             ).length > 0 ? (
@@ -739,11 +793,12 @@ export default function ProjectsShow({ project }) {
                                   setTasksPendingDelete(
                                       tasks.filter((task) => task.destroy_url),
                                   ),
+                              onAssign: handleSelectedTasksAssignment,
                               onMarkComplete: () =>
                                   handleSelectedTasksCompletion(true),
                               onMarkIncomplete: () =>
                                   handleSelectedTasksCompletion(false),
-                          })
+                          }, project.assignee_options ?? [])
                         : taskActionsForTask(
                               tasksByIds(taskGroups, [
                                   taskContextMenu.taskId,
@@ -824,7 +879,7 @@ function ProjectHeroFacts({ project }) {
     );
     const parent = project.parent;
 
-    if (!parent?.name && !schedule) {
+    if (!parent?.name && !project.client?.name && !schedule) {
         return null;
     }
 
@@ -838,7 +893,17 @@ function ProjectHeroFacts({ project }) {
                     {parent.name}
                 </Link>
             ) : null}
-            {parent?.name && schedule ? (
+            {project.client?.name ? (
+                <Link
+                    href={toAppPath(project.client.show_url)}
+                    className="font-medium text-stone-600 transition-colors hover:text-stone-900"
+                >
+                    {project.client.name}
+                </Link>
+            ) : (
+                <span>Internal</span>
+            )}
+            {(parent?.name || project.client?.name) && schedule ? (
                 <span
                     className="hidden text-stone-300 sm:inline"
                     aria-hidden="true"

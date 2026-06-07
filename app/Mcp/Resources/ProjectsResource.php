@@ -28,16 +28,23 @@ class ProjectsResource extends Resource implements HasUriTemplate
         $team = $this->context->teamForSlug($validated['team_slug'], 'planner:read');
 
         $projects = $team->projects()
+            ->with(['client', 'parent.client'])
             ->withCount('tasks')
             ->timelineVisible()
             ->orderBy('name')
             ->get()
-            ->map(fn (Project $project): array => [
-                'id' => $project->id,
-                'name' => $project->name,
-                'description' => $project->description,
-                'tasks_count' => $project->tasks_count,
-            ])
+            ->map(function (Project $project): array {
+                $client = $project->effectiveClient();
+
+                return [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'description' => $project->description,
+                    'client_id' => $client?->id,
+                    'client' => $client ? ['id' => $client->id, 'name' => $client->name] : null,
+                    'tasks_count' => $project->tasks_count,
+                ];
+            })
             ->all();
 
         return Response::json([

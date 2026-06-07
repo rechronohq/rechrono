@@ -24,6 +24,7 @@ class ProjectApiController extends Controller
     {
         return ProjectResource::collection(
             $team->projects()
+                ->with(['client', 'parent.client'])
                 ->timelineVisible()
                 ->orderBy('name')
                 ->get(),
@@ -34,20 +35,22 @@ class ProjectApiController extends Controller
     {
         $project = $this->projectService->create($team, $request->validated());
 
-        return ProjectResource::make($project)->response()->setStatusCode(201);
+        return ProjectResource::make($project->load(['client', 'parent.client']))->response()->setStatusCode(201);
     }
 
     public function storeFromTemplate(StoreProjectFromTemplateRequest $request, Team $team): JsonResponse
     {
         $project = $this->projectService->createFromTemplate($team, $request->validated());
 
-        return ProjectResource::make($project)->response()->setStatusCode(201);
+        return ProjectResource::make($project->load(['client', 'parent.client']))->response()->setStatusCode(201);
     }
 
     public function show(Team $team, Project $project): ProjectResource
     {
         return ProjectResource::make(
             $project->load([
+                'client',
+                'parent.client',
                 'tasks' => fn ($query) => $query
                     ->orderBy('sort_order')
                     ->orderBy('start_date')
@@ -60,14 +63,14 @@ class ProjectApiController extends Controller
     {
         $projectCopy = $this->projectService->duplicate($project);
 
-        return ProjectResource::make($projectCopy)->response()->setStatusCode(201);
+        return ProjectResource::make($projectCopy->load(['client', 'parent.client']))->response()->setStatusCode(201);
     }
 
     public function saveAsTemplate(Team $team, Project $project): JsonResponse
     {
         $template = $this->projectService->saveAsTemplate($team, $project);
 
-        return ProjectResource::make($template)->response()->setStatusCode(201);
+        return ProjectResource::make($template->load(['client', 'parent.client']))->response()->setStatusCode(201);
     }
 
     public function bulkAction(BulkProjectActionRequest $request, Team $team): AnonymousResourceCollection
@@ -78,6 +81,7 @@ class ProjectApiController extends Controller
 
         return ProjectResource::collection(
             $team->projects()
+                ->with(['client', 'parent.client'])
                 ->whereIn('id', $validated['project_ids'])
                 ->orderBy('created_at')
                 ->get(),
@@ -87,7 +91,7 @@ class ProjectApiController extends Controller
     public function update(UpdateProjectRequest $request, Team $team, Project $project): ProjectResource
     {
         return ProjectResource::make(
-            $this->projectService->update($team, $project, $request->validated()),
+            $this->projectService->update($team, $project, $request->validated())->load(['client', 'parent.client']),
         );
     }
 

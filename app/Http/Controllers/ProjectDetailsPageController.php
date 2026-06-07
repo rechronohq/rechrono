@@ -20,6 +20,8 @@ class ProjectDetailsPageController extends Controller
 
     public function __invoke(Request $request, Team $team, Project $project): Response
     {
+        $project->load(['client', 'parent.client']);
+        $client = $project->effectiveClient();
         [$startDate, $endDate] = $this->projectDateRangeResolver->forProject($project);
         $tasks = $project->tasks()
             ->with(['assigneeUser', 'parent'])
@@ -38,6 +40,12 @@ class ProjectDetailsPageController extends Controller
                 'end_date' => $endDate,
                 'is_active' => $project->is_active,
                 'is_template' => $project->is_template,
+                'client_id' => $client?->id,
+                'client' => $client ? [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'show_url' => route('clients.show', [$team, $client]),
+                ] : null,
                 'bulk_action_url' => route('projects.bulk-action', $team),
                 'parent' => $project->parent ? [
                     'id' => $project->parent->id,
@@ -51,6 +59,7 @@ class ProjectDetailsPageController extends Controller
                 'template_url' => route('projects.template', [$team, $project]),
                 'timeline_url' => route('projects.timeline', [$team, $project]),
                 'create_task_url' => route('projects.tasks.store', [$team, $project]),
+                'bulk_assign_tasks_url' => route('projects.tasks.bulk-assign', [$team, $project]),
                 'assignee_options' => $this->assigneeOptions($team),
                 'parent_task_options' => $this->parentTaskOptions($tasks),
                 'task_summary' => $this->taskSummary($tasks),

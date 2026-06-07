@@ -7,7 +7,7 @@ import { ProjectsForm } from '@/projects/ProjectsForm';
 import { request } from '@/lib/request';
 import { toAppPath } from '@/lib/url';
 
-export default function ProjectsCreate({ projects, templateProjects = [] }) {
+export default function ProjectsCreate({ projects, templateProjects = [], clientOptions = [] }) {
     const { props } = usePage();
     const routes = props.routes ?? {};
     const [isSaving, setIsSaving] = useState(false);
@@ -16,6 +16,7 @@ export default function ProjectsCreate({ projects, templateProjects = [] }) {
         parent_id: '',
         description: '',
         budget_hours: '',
+        client_id: '',
         template_project_id: '',
     });
 
@@ -41,6 +42,7 @@ export default function ProjectsCreate({ projects, templateProjects = [] }) {
                     name: form.name.trim(),
                     description: usesTemplate ? null : form.description.trim() || null,
                     budget_hours: usesTemplate || form.budget_hours === '' ? null : Number(form.budget_hours),
+                    client_id: form.parent_id ? null : (form.client_id || null),
                     parent_id: form.parent_id || null,
                     template_project_id: usesTemplate ? form.template_project_id : null,
                 }),
@@ -67,6 +69,7 @@ export default function ProjectsCreate({ projects, templateProjects = [] }) {
                 value={form}
                 projects={projects ?? []}
                 templateProjects={templateProjects}
+                clientOptions={clientOptions}
                 isSaving={isSaving}
                 onFieldChange={handleFieldChange}
                 onSubmit={handleSubmit}

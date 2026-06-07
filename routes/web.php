@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\ApiTokenController;
+use App\Http\Controllers\ClientContactController;
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientDetailsPageController;
+use App\Http\Controllers\ClientsPageController;
 use App\Http\Controllers\HiveImportController;
 use App\Http\Controllers\ImportsPageController;
 use App\Http\Controllers\ProfileController;
@@ -35,6 +39,7 @@ Route::middleware('auth')->group(function () {
         'team' => $request->user()->team,
         ...$request->query(),
     ]));
+    Route::get('/clients', fn (Request $request) => redirect()->route('clients.index', $request->user()->team));
     Route::get('/imports', fn (Request $request) => redirect()->route('imports.index', $request->user()->team));
     Route::get('/timesheet', fn (Request $request) => redirect()->route('timesheet.index', $request->user()->team));
     Route::get('/projects/new', fn (Request $request) => redirect()->route('projects.create', $request->user()->team));
@@ -57,6 +62,14 @@ Route::prefix('{team:slug}')
         Route::get('/planner', TimelinePageController::class)->name('planner');
         Route::get('/tasks', TimelinePageController::class)->name('tasks');
         Route::get('/projects', ProjectsPageController::class)->name('projects.index');
+        Route::get('/clients', ClientsPageController::class)->name('clients.index');
+        Route::get('/clients/{client}', ClientDetailsPageController::class)->name('clients.show');
+        Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
+        Route::patch('/clients/{client}', [ClientController::class, 'update'])->name('clients.update');
+        Route::delete('/clients/{client}', [ClientController::class, 'destroy'])->name('clients.destroy');
+        Route::post('/clients/{client}/contacts', [ClientContactController::class, 'store'])->name('client-contacts.store');
+        Route::patch('/clients/{client}/contacts/{contact}', [ClientContactController::class, 'update'])->name('client-contacts.update');
+        Route::delete('/clients/{client}/contacts/{contact}', [ClientContactController::class, 'destroy'])->name('client-contacts.destroy');
         Route::get('/imports', ImportsPageController::class)->name('imports.index');
         Route::get('/timesheet', TimesheetPageController::class)->name('timesheet.index');
         Route::get('/projects/new', ProjectCreatePageController::class)->name('projects.create');
@@ -77,6 +90,7 @@ Route::prefix('{team:slug}')
         Route::post('/projects/{project}/template', [ProjectController::class, 'saveAsTemplate'])->name('projects.template');
         Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
         Route::post('/projects/{project}/tasks', [ProjectTaskController::class, 'store'])->name('projects.tasks.store');
+        Route::post('/projects/{project}/tasks/bulk-assign', [ProjectTaskController::class, 'bulkAssign'])->name('projects.tasks.bulk-assign');
         Route::post('/projects/{project}/tasks/{task}/duplicate', [ProjectTaskController::class, 'duplicate'])->name('projects.tasks.duplicate');
         Route::post('/projects/{project}/tasks/reorder', [ProjectTaskController::class, 'reorder'])->name('projects.tasks.reorder');
         Route::patch('/projects/{project}/tasks/{task}', [ProjectTaskController::class, 'update'])->name('projects.tasks.update');

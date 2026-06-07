@@ -4,6 +4,7 @@ namespace App\Http\Requests\Projects;
 
 use App\Http\Requests\Concerns\ValidatesPlannerScope;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreProjectFromTemplateRequest extends FormRequest
 {
@@ -22,6 +23,7 @@ class StoreProjectFromTemplateRequest extends FormRequest
         return [
             'template_project_id' => ['required', 'uuid', $this->teamTemplateProjectRule()],
             'name' => ['required', 'string', 'max:255'],
+            'client_id' => ['nullable', Rule::prohibitedIf($this->filled('parent_id')), 'uuid', $this->activeTeamClientRule()],
             'parent_id' => ['nullable', 'uuid', $this->teamProjectRule()],
             'selected_project_ids' => ['nullable', 'array'],
             'selected_project_ids.*' => ['uuid', $this->teamProjectRule()],

@@ -157,6 +157,7 @@ class ProjectController extends Controller
     protected function allVisibleProjects(Team $team): Collection
     {
         return $team->projects()
+            ->with(['client', 'parent.client'])
             ->timelineVisible()
             ->get();
     }

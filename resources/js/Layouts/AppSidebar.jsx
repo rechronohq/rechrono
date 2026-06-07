@@ -241,9 +241,11 @@ export function AppSidebar({ groups, utilityApps = [], localNavigation, activeAp
                     {groups.map((group) => (
                         <div key={group.key}>
                             <div>
-                                <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-400">
-                                    {group.label}
-                                </div>
+                                {group.label ? (
+                                    <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-400">
+                                        {group.label}
+                                    </div>
+                                ) : null}
                                 <div className="space-y-1">
                                     {group.items.map((app) => {
                                         const isActive = app.key === activePrimaryApp;

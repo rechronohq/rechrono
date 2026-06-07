@@ -25,7 +25,14 @@ class ProjectCreatePageController extends Controller
                     'id' => $project->id,
                     'name' => $project->name,
                 ])->all(),
+            'clientOptions' => $this->clientOptions($team),
         ]);
+    }
+
+    protected function clientOptions(Team $team): array
+    {
+        return $team->clients()->where('is_active', true)->get(['id', 'name'])
+            ->map(fn ($client): array => ['id' => $client->id, 'name' => $client->name])->all();
     }
 
     protected function projectOptions(Team $team): array

@@ -61,7 +61,8 @@ Body:
 ```json
 {
   "name": "Website launch",
-  "description": "Campaign planning"
+  "description": "Campaign planning",
+  "client_id": "client-uuid"
 }
 ```
 
@@ -70,6 +71,7 @@ Supported fields:
 - `name`: required string, max 255 characters
 - `description`: nullable string
 - `parent_id`: nullable project UUID
+- `client_id`: nullable active team client UUID for root projects; omitted or `null` means internal
 
 Returns `201 Created` with the project resource.
 
@@ -94,6 +96,7 @@ Supported fields:
 - `template_project_id`: required template project UUID
 - `name`: required string, max 255 characters
 - `parent_id`: nullable project UUID
+- `client_id`: nullable active team client UUID when creating a root project
 
 Returns `201 Created` with the created project resource.
 
@@ -125,6 +128,21 @@ Supported fields:
 - `name`: required string, max 255 characters
 - `description`: nullable string
 - `parent_id`: nullable project UUID
+- `client_id`: nullable active team client UUID for root projects
+
+Project resources expose the effective client for both roots and subprojects:
+
+```json
+{
+  "client_id": "client-uuid",
+  "client": {
+    "id": "client-uuid",
+    "name": "Acme"
+  }
+}
+```
+
+For internal projects, both values are `null`. Subprojects inherit these values from their parent project.
 
 Returns the updated project resource.
 

@@ -58,4 +58,25 @@ trait ValidatesPlannerScope
         return Rule::exists('users', 'id')
             ->where(fn ($query) => $query->where('team_id', $this->currentTeam()?->id));
     }
+
+    protected function activeTeamClientRule(): mixed
+    {
+        return Rule::exists('clients', 'id')
+            ->where(fn ($query) => $query
+                ->where('team_id', $this->currentTeam()?->id)
+                ->where('is_active', true));
+    }
+
+    protected function teamClientRuleAllowingCurrentProject(): mixed
+    {
+        return Rule::exists('clients', 'id')
+            ->where(fn ($query) => $query
+                ->where('team_id', $this->currentTeam()?->id)
+                ->where(fn ($query) => $query
+                    ->where('is_active', true)
+                    ->when(
+                        $this->currentProject()?->client_id,
+                        fn ($query, $clientId) => $query->orWhere('id', $clientId),
+                    )));
+    }
 }

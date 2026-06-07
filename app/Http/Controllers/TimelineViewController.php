@@ -22,7 +22,7 @@ class TimelineViewController extends Controller
     {
         $this->abortUnlessOwner($request, $timelineView);
 
-        $allProjects = $team->projects()->timelineVisible()->get();
+        $allProjects = $team->projects()->with(['client', 'parent.client'])->timelineVisible()->get();
         $selectedProjectIds = $this->normalizeProjectIds($allProjects, $timelineView->project_ids ?? []);
         $visibleProjectIds = Project::expandSelectedIds($allProjects, $selectedProjectIds);
         $selectedProjects = $allProjects->whereIn('id', $visibleProjectIds)->values();

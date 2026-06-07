@@ -48,6 +48,7 @@ class ProjectsTablePayloadBuilder
                 $routeTeam = $team ?? $project->team;
                 [$startDate, $endDate] = $dateRanges->get($project->id, [null, null]);
                 $actualSeconds = (int) ($projectActualSeconds[$project->id] ?? 0);
+                $client = $project->effectiveClient();
 
                 return [
                     'id' => $project->id,
@@ -55,6 +56,8 @@ class ProjectsTablePayloadBuilder
                     'start_date' => $startDate,
                     'end_date' => $endDate,
                     'parent_id' => $project->parent_id,
+                    'client_id' => $client?->id,
+                    'client' => $client ? ['id' => $client->id, 'name' => $client->name] : null,
                     'budget_hours' => $team?->time_tracking_enabled ? ($project->budget_hours === null ? null : (float) $project->budget_hours) : null,
                     'actual_hours' => $team?->time_tracking_enabled ? round($actualSeconds / 3600, 2) : null,
                     'depth' => $project->parent_id ? 1 : 0,

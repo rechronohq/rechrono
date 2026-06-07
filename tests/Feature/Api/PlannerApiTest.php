@@ -162,8 +162,16 @@ class PlannerApiTest extends TestCase
         $team = Team::factory()->create(['slug' => 'api-team']);
         $user = User::factory()->for($team)->create();
         $project = Project::factory()->for($team)->create(['name' => 'API Project']);
+        $group = Task::factory()->create([
+            'project_id' => $project->id,
+            'kind' => Task::KIND_GROUP,
+            'name' => 'Production',
+            'start_date' => null,
+            'end_date' => null,
+        ]);
         Task::factory()->create([
             'project_id' => $project->id,
+            'parent_id' => $group->id,
             'name' => 'Original task',
         ]);
 
@@ -175,11 +183,38 @@ class PlannerApiTest extends TestCase
             ->assertJsonPath('data.name', 'API Project Copy')
             ->assertJsonPath('data.is_template', false);
 
-        $this
+        $templateResponse = $this
             ->postJson(route('api.projects.template', [$team, $project]))
             ->assertCreated()
             ->assertJsonPath('data.name', 'API Project Template')
             ->assertJsonPath('data.is_template', true);
+
+        $template = Project::query()->findOrFail($templateResponse->json('data.id'));
+
+        $this->assertDatabaseHas('tasks', [
+            'project_id' => $template->id,
+            'kind' => Task::KIND_GROUP,
+            'name' => 'Production Copy',
+            'start_date' => null,
+            'end_date' => null,
+        ]);
+
+        $projectFromTemplateResponse = $this
+            ->postJson(route('api.projects.from-template', $team), [
+                'template_project_id' => $template->id,
+                'name' => 'Project From Template',
+            ])
+            ->assertCreated();
+
+        $projectFromTemplate = Project::query()->findOrFail($projectFromTemplateResponse->json('data.id'));
+
+        $this->assertDatabaseHas('tasks', [
+            'project_id' => $projectFromTemplate->id,
+            'kind' => Task::KIND_GROUP,
+            'name' => 'Production Copy',
+            'start_date' => null,
+            'end_date' => null,
+        ]);
 
         $this->assertDatabaseHas('projects', [
             'team_id' => $team->id,

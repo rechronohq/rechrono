@@ -18,7 +18,7 @@ class TimelinePageController extends Controller
 
     public function __invoke(Request $request, Team $team, ?Project $project = null): Response
     {
-        $allProjects = $team->projects()->timelineVisible()->get();
+        $allProjects = $team->projects()->with(['client', 'parent.client'])->timelineVisible()->get();
         $selectedProjectIds = $this->selectedProjectIds($request, $allProjects, $project);
         $visibleProjectIds = $this->visibleProjectIds($allProjects, $selectedProjectIds, $project);
         $selectedAssigneeFilters = $this->selectedAssigneeFilters($request);

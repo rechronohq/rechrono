@@ -58,6 +58,11 @@ class Team extends Model
         return $this->hasMany(Project::class)->orderBy('name');
     }
 
+    public function clients(): HasMany
+    {
+        return $this->hasMany(Client::class)->orderBy('name');
+    }
+
     public function timelineViews(): HasMany
     {
         return $this->hasMany(TimelineView::class)->orderBy('name');

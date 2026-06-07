@@ -18,6 +18,7 @@ export function ProjectDialog({
     open,
     projectForm,
     projects,
+    clientOptions = [],
     templateProjects,
 }) {
     const { props } = usePage();
@@ -33,6 +34,7 @@ export function ProjectDialog({
                 <ProjectsForm
                     value={projectForm}
                     projects={projects}
+                    clientOptions={clientOptions}
                     templateProjects={templateProjects}
                     isSaving={isSaving}
                     onFieldChange={onProjectFormChange}

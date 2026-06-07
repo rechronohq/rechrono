@@ -28,6 +28,7 @@ class ProjectsPageController extends Controller
     protected function projectsPayload(Team $team, string $statusFilter): array
     {
         $projects = $team->projects()
+            ->with(['client', 'parent.client'])
             ->when($statusFilter !== 'templates' && $statusFilter !== 'all', fn ($query) => $query->plannerVisible())
             ->when($statusFilter === 'templates', fn ($query) => $query->templates())
             ->when($statusFilter === 'active', fn ($query) => $query->active())

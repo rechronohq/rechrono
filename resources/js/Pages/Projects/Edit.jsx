@@ -6,7 +6,7 @@ import { ProjectsForm } from '@/projects/ProjectsForm';
 import { request } from '@/lib/request';
 import { toAppPath } from '@/lib/url';
 
-export default function ProjectsEdit({ project, projects }) {
+export default function ProjectsEdit({ project, projects, clientOptions = [] }) {
     const { props } = usePage();
     const routes = props.routes ?? {};
     const [isSaving, setIsSaving] = useState(false);
@@ -15,6 +15,7 @@ export default function ProjectsEdit({ project, projects }) {
         parent_id: project.parent_id ?? '',
         description: project.description ?? '',
         budget_hours: project.budget_hours ?? '',
+        client_id: project.client_id ?? '',
     });
 
     function handleFieldChange(field, value) {
@@ -38,6 +39,7 @@ export default function ProjectsEdit({ project, projects }) {
                     name: form.name.trim(),
                     description: form.description.trim() || null,
                     budget_hours: form.budget_hours === '' ? null : Number(form.budget_hours),
+                    client_id: form.parent_id ? null : (form.client_id || null),
                     parent_id: form.parent_id || null,
                 }),
             });
@@ -53,6 +55,7 @@ export default function ProjectsEdit({ project, projects }) {
             <ProjectsForm
                 value={form}
                 projects={projects ?? []}
+                clientOptions={clientOptions}
                 excludeProjectId={project.id}
                 isSaving={isSaving}
                 onFieldChange={handleFieldChange}

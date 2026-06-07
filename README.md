@@ -1,10 +1,11 @@
 # Rechrono
 
-Rechrono is a Laravel, Inertia, and React planner app focused on Gantt-style project and task planning.
+Rechrono is a Laravel, Inertia, and React project operations app focused on Gantt-style planning, clients, and time tracking.
 
 This repository contains the open-source-ready planner surface only:
 
 - project and task CRUD
+- client and contact management
 - timeline/Gantt planning
 - Hive CSV import
 - MCP planner tools

@@ -17,7 +17,7 @@ class TimelineDataController extends Controller
     public function index(Request $request): JsonResponse
     {
         $team = $this->currentTeam($request);
-        $allProjects = $team->projects()->timelineVisible()->get();
+        $allProjects = $team->projects()->with(['client', 'parent.client'])->timelineVisible()->get();
         $selectedProjectIds = collect($request->query('projects', []))
             ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
             ->values();

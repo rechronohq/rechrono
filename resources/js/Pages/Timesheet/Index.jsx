@@ -214,7 +214,7 @@ export default function TimesheetIndex({ timesheet }) {
 
     return (
         <AppPage title="Timesheet" activeApp="timesheet">
-            <div className="flex min-h-0 w-full flex-1 overflow-auto bg-white">
+            <div className="flex min-h-0 w-full flex-1 bg-white">
                 <div className="flex min-h-full w-full flex-col">
                     <div className="mx-auto flex min-h-0 w-full max-w-[1180px] flex-1 flex-col px-6">
                         <div className="flex flex-wrap items-center justify-between gap-4 py-6">

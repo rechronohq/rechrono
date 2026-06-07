@@ -6,12 +6,21 @@ const routes = {
     apps: {
         planner: '/planner',
         projects: '/projects',
+        clients: '/clients',
         timesheet: '/timesheet',
     },
     teamSettingsEdit: '/settings',
 };
 
 describe('app chrome', () => {
+    test('places timeline projects and timesheet in one unlabeled primary group', () => {
+        const chrome = getAppChrome(routes, { is_admin: false }, 'planner');
+
+        expect(chrome.groups).toHaveLength(1);
+        expect(chrome.groups[0].label).toBeNull();
+        expect(chrome.groups[0].items.map((item) => item.key)).toEqual(['planner', 'projects', 'clients', 'timesheet']);
+    });
+
     test('resolves settings as its own primary app', () => {
         expect(resolveActivePrimaryApp('settings')).toBe('settings');
 

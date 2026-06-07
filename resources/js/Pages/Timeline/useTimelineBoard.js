@@ -46,7 +46,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
     const [projectFormOpen, setProjectFormOpen] = useState(false);
     const [projectForm, setProjectForm] = useState(defaultProjectForm);
     const [projectModalProjectId, setProjectModalProjectId] = useState(null);
-    const [projectModalForm, setProjectModalForm] = useState({ name: '', description: '', budget_hours: '', parent_id: '' });
+    const [projectModalForm, setProjectModalForm] = useState({ name: '', description: '', budget_hours: '', client_id: '', parent_id: '' });
     const [taskModalTaskId, setTaskModalTaskId] = useState(null);
     const [taskModalForm, setTaskModalForm] = useState({
         id: null,
@@ -471,6 +471,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
             name: project.name,
             description: project.description ?? '',
             budget_hours: project.budget_hours ?? '',
+            client_id: project.client_id ?? '',
             parent_id: project.parent_id ?? '',
         });
     }
@@ -490,7 +491,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
 
     function closeProjectModal() {
         setProjectModalProjectId(null);
-        setProjectModalForm({ name: '', description: '', budget_hours: '', parent_id: '' });
+        setProjectModalForm({ name: '', description: '', budget_hours: '', client_id: '', parent_id: '' });
     }
 
     function openTaskModal(task) {
@@ -696,6 +697,7 @@ export function useTimelineBoard({ activeTimelineView, timelineData, routes, cre
             name: nextName,
             description: projectModalForm.description,
             budget_hours: projectModalForm.budget_hours === '' ? null : Number(projectModalForm.budget_hours),
+            client_id: projectModalForm.parent_id ? null : (projectModalForm.client_id || null),
             parent_id: projectModalForm.parent_id || null,
         });
         closeProjectModal();

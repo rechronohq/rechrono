@@ -51,6 +51,7 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                     onToggleAssigneeSelection={board.toggleAssigneeSelection}
                     onToggleProjectSelection={board.toggleProjectSelection}
                     projects={board.data.projects}
+                    clientOptions={board.data.client_options ?? []}
                     selectedAssigneeFilters={board.data.selected_assignee_filters ?? []}
                     selectedProjectIds={board.data.selected_project_ids}
                     showWeekends={board.data.show_weekends ?? false}
@@ -139,6 +140,7 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                     open={board.projectFormOpen}
                     projectForm={board.projectForm}
                     projects={board.data.projects}
+                    clientOptions={board.data.client_options ?? []}
                     templateProjects={board.data.template_projects ?? []}
                 />
 
