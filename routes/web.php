@@ -55,6 +55,8 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+require __DIR__.'/auth.php';
+
 Route::prefix('{team:slug}')
     ->middleware(['auth', 'team.member'])
     ->scopeBindings()
@@ -113,5 +115,3 @@ Route::prefix('{team:slug}')
         Route::patch('/time/entries/{timeEntry}', [TimeEntryController::class, 'update'])->withoutScopedBindings()->name('time.entries.update');
         Route::delete('/time/entries/{timeEntry}', [TimeEntryController::class, 'destroy'])->withoutScopedBindings()->name('time.entries.destroy');
     });
-
-require __DIR__.'/auth.php';

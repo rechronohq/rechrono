@@ -23,13 +23,18 @@ class ListProjects extends Tool
     {
         $validated = $request->validate([
             'team_slug' => ['required', 'string'],
+            'status' => ['nullable', 'string', 'in:active,archived,all,templates'],
         ]);
         $team = $this->context->teamForSlug($validated['team_slug'], 'planner:read');
+        $status = $validated['status'] ?? 'active';
 
         $projects = $team->projects()
             ->with(['client', 'parent.client'])
             ->withCount('tasks')
-            ->timelineVisible()
+            ->when($status === 'active', fn ($query) => $query->plannerVisible()->active())
+            ->when($status === 'archived', fn ($query) => $query->plannerVisible()->archived())
+            ->when($status === 'all', fn ($query) => $query->plannerVisible())
+            ->when($status === 'templates', fn ($query) => $query->templates())
             ->orderBy('name')
             ->get()
             ->map(function (Project $project): array {
@@ -39,9 +44,12 @@ class ListProjects extends Tool
                     'id' => $project->id,
                     'name' => $project->name,
                     'description' => $project->description,
+                    'parent_id' => $project->parent_id,
                     'client_id' => $client?->id,
                     'client' => $client ? ['id' => $client->id, 'name' => $client->name] : null,
                     'tasks_count' => $project->tasks_count,
+                    'is_active' => $project->is_active,
+                    'is_template' => $project->is_template,
                 ];
             })
             ->all();
@@ -55,6 +63,7 @@ class ListProjects extends Tool
     {
         return [
             'team_slug' => $schema->string()->required(),
+            'status' => $schema->string()->nullable(),
         ];
     }
 

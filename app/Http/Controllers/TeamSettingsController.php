@@ -93,6 +93,7 @@ class TeamSettingsController extends Controller
                     ->all()
                 : [],
             'newApiToken' => $request->session()->get('api_token_plain_text'),
+            'mcpEndpoint' => url('/mcp/planner'),
             'teamSettingsRoutes' => [
                 'teamSettingsUpdate' => route('team-settings.update', $team),
                 'settingsSections' => collect(self::SECTIONS)

@@ -2,6 +2,7 @@
 
 namespace App\Mcp;
 
+use App\Models\Client;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Team;
@@ -48,6 +49,23 @@ class PlannerMcpContext
         }
 
         return $project;
+    }
+
+    public function clientForTeam(Team $team, ?string $clientId, string $field = 'client_id'): ?Client
+    {
+        if ($clientId === null) {
+            return null;
+        }
+
+        $client = $team->clients()->whereKey($clientId)->first();
+
+        if (! $client) {
+            throw ValidationException::withMessages([
+                $field => 'The selected client is invalid for this team.',
+            ]);
+        }
+
+        return $client;
     }
 
     public function taskForTeam(Team $team, ?string $taskId, string $field = 'task_id'): ?Task

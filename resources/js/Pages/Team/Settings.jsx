@@ -79,7 +79,7 @@ function formatTokenAccess(abilities) {
     return 'Read only';
 }
 
-export default function TeamSettings({ team, members, activeSection = 'workspace-profile', apiTokens = [], newApiToken = null, teamSettingsRoutes }) {
+export default function TeamSettings({ team, members, activeSection = 'workspace-profile', apiTokens = [], newApiToken = null, mcpEndpoint, teamSettingsRoutes }) {
     const { auth, flash } = usePage().props;
     const isOwner = auth.team?.is_owner ?? false;
     const teamForm = useForm({
@@ -343,6 +343,20 @@ export default function TeamSettings({ team, members, activeSection = 'workspace
                             <p className="mt-1 text-sm text-stone-500">
                                 Create personal tokens for API clients and integrations.
                             </p>
+                    </div>
+
+                    <div className="grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-400">MCP endpoint</p>
+                            <Input readOnly value={mcpEndpoint} className="mt-2 font-mono text-xs" aria-label="MCP endpoint" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-400">Team slug</p>
+                            <Input readOnly value={team.slug} className="mt-2 font-mono text-xs" aria-label="MCP team slug" />
+                        </div>
+                        <p className="text-sm text-stone-500 sm:col-span-2">
+                            Connect an HTTP MCP client with this endpoint and send the token as an Authorization bearer header. Every tool call requires the team slug.
+                        </p>
                     </div>
 
                     {newApiToken ? (
