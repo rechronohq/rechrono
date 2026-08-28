@@ -37,6 +37,42 @@ Arguments:
 
 Returns active, non-template projects for the team with task counts.
 
+Optional `status` values are `active` (default), `archived`, `all`, and `templates`.
+
+### `list-members`
+
+Read-only. Requires `planner:read`. Returns team members and their IDs for task assignment.
+
+### `list-clients`
+
+Read-only. Requires `planner:read`. Returns clients and their IDs for project creation. The optional `status` argument accepts `active` (default), `archived`, or `all`.
+
+### `create-project`
+
+Mutation. Requires `planner:write`.
+
+```json
+{
+  "team_slug": "my-team",
+  "name": "Website launch",
+  "description": "Campaign planning",
+  "parent_id": null,
+  "client_id": null
+}
+```
+
+### `update-project`
+
+Mutation. Requires `planner:write`. Accepts `project_id` plus any of `name`, `description`, `parent_id`, and `client_id`.
+
+### `archive-project`
+
+Mutation. Requires `planner:write`. Accepts `team_slug` and `project_id`. Archived projects can be found with `list-projects` using `status: archived`.
+
+### `unarchive-project`
+
+Mutation. Requires `planner:write`. Accepts `team_slug` and `project_id` and restores the project to the active planner.
+
 ### `list-tasks`
 
 Read-only. Requires `planner:read`.
@@ -164,6 +200,16 @@ Resource templates are read-only and require `planner:read`:
 - Team slug does not belong to the token user: `404`.
 - Cross-team project, task, or assignee IDs: validation error.
 - Invalid dates, task kinds, reorder positions, or group invariants: validation error.
+
+## Client Setup
+
+Configure an HTTP-capable MCP client with the absolute `/mcp/planner` URL. Send the Sanctum token on every request:
+
+```text
+Authorization: Bearer <plain_text_token>
+```
+
+The Team Settings API tokens screen shows the endpoint and team slug. Client configuration formats differ, so keep real tokens in the client's secret or environment-variable storage rather than committing them to the repository.
 
 ## ChatGPT App Status
 

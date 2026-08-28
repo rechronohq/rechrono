@@ -2,13 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Mcp\Tools\ArchiveProject;
 use App\Mcp\Tools\CompleteTask;
+use App\Mcp\Tools\CreateProject;
 use App\Mcp\Tools\CreateTask;
+use App\Mcp\Tools\ListClients;
+use App\Mcp\Tools\ListMembers;
 use App\Mcp\Tools\ListProjects;
 use App\Mcp\Tools\ListTasks;
 use App\Mcp\Tools\ReadProject;
 use App\Mcp\Tools\ReorderTask;
+use App\Mcp\Tools\UnarchiveProject;
+use App\Mcp\Tools\UpdateProject;
 use App\Mcp\Tools\UpdateTask;
+use App\Models\Client;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Team;
@@ -55,6 +62,12 @@ class McpPlannerTest extends TestCase
         $this->assertContains('list-projects', $toolNames);
         $this->assertContains('list-tasks', $toolNames);
         $this->assertContains('read-project', $toolNames);
+        $this->assertContains('list-members', $toolNames);
+        $this->assertContains('list-clients', $toolNames);
+        $this->assertNotContains('create-project', $toolNames);
+        $this->assertNotContains('update-project', $toolNames);
+        $this->assertNotContains('archive-project', $toolNames);
+        $this->assertNotContains('unarchive-project', $toolNames);
         $this->assertNotContains('create-task', $toolNames);
         $this->assertNotContains('reorder-task', $toolNames);
         $this->assertNotContains('update-task', $toolNames);
@@ -176,6 +189,83 @@ class McpPlannerTest extends TestCase
         $this->assertSame(100, $task->progress);
         $this->assertTrue($task->completed);
         $this->assertNull($task->assignee_user_id);
+    }
+
+    public function test_write_token_manages_project_lifecycle(): void
+    {
+        [$team, , $user] = $this->teamFixture();
+        $client = Client::factory()->for($team)->create(['name' => 'MCP Client']);
+
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
+
+        $response = app(CreateProject::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'name' => 'Agent-created project',
+            'description' => 'Created through MCP',
+            'client_id' => $client->id,
+        ]));
+        $payload = json_decode((string) $response->content(), true, flags: JSON_THROW_ON_ERROR);
+        $project = Project::query()->findOrFail($payload['project']['id']);
+
+        app(UpdateProject::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'project_id' => $project->id,
+            'name' => 'Updated agent project',
+        ]));
+        app(ArchiveProject::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'project_id' => $project->id,
+        ]));
+
+        $this->assertSame('Updated agent project', $project->refresh()->name);
+        $this->assertFalse($project->is_active);
+
+        $archived = app(ListProjects::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'status' => 'archived',
+        ]));
+        $this->assertStringContainsString('Updated agent project', (string) $archived->content());
+
+        app(UnarchiveProject::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'project_id' => $project->id,
+        ]));
+
+        $this->assertTrue($project->refresh()->is_active);
+    }
+
+    public function test_discovery_tools_return_only_team_members_and_clients(): void
+    {
+        [$team, $otherTeam, $user] = $this->teamFixture();
+        Client::factory()->for($team)->create(['name' => 'Visible MCP Client']);
+        Client::factory()->for($otherTeam)->create(['name' => 'Hidden MCP Client']);
+        User::factory()->for($otherTeam)->create(['name' => 'Hidden MCP Member']);
+
+        Sanctum::actingAs($user, ['planner:read']);
+
+        $members = app(ListMembers::class)->handle(new Request(['team_slug' => $team->slug]));
+        $clients = app(ListClients::class)->handle(new Request(['team_slug' => $team->slug]));
+
+        $this->assertStringContainsString('MCP User', (string) $members->content());
+        $this->assertStringNotContainsString('Hidden MCP Member', (string) $members->content());
+        $this->assertStringContainsString('Visible MCP Client', (string) $clients->content());
+        $this->assertStringNotContainsString('Hidden MCP Client', (string) $clients->content());
+    }
+
+    public function test_project_tools_reject_cross_team_references(): void
+    {
+        [$team, $otherTeam, $user] = $this->teamFixture();
+        $otherClient = Client::factory()->for($otherTeam)->create();
+
+        Sanctum::actingAs($user, ['planner:read', 'planner:write']);
+
+        $this->expectException(ValidationException::class);
+
+        app(CreateProject::class)->handle(new Request([
+            'team_slug' => $team->slug,
+            'name' => 'Invalid client project',
+            'client_id' => $otherClient->id,
+        ]));
     }
 
     public function test_write_token_can_reorder_project_tasks(): void
