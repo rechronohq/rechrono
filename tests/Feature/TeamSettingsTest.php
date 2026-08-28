@@ -7,7 +7,9 @@ use App\Models\TeamInvitation;
 use App\Models\User;
 use App\Notifications\TeamInvitationNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class TeamSettingsTest extends TestCase
@@ -104,6 +106,41 @@ class TeamSettingsTest extends TestCase
             TeamInvitationNotification::class,
             fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'new-member@example.com',
         );
+    }
+
+    public function test_invitation_email_link_loads_accept_invitation_page(): void
+    {
+        $owner = $this->createTeamOwner();
+
+        $this->actingAs($owner)
+            ->post(route('team-invites.store', $owner->team), [
+                'email' => 'new-member@example.com',
+            ]);
+
+        $invitation = TeamInvitation::query()->where('email', 'new-member@example.com')->firstOrFail();
+        $mail = (new TeamInvitationNotification($invitation))->toMail((object) []);
+
+        $this->assertSame('/invite/'.$invitation->token, parse_url($mail->actionUrl, PHP_URL_PATH));
+
+        Auth::logout();
+
+        $this->get($mail->actionUrl)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Auth/AcceptInvite')
+                ->where('invitation.email', 'new-member@example.com'));
+    }
+
+    public function test_invitation_routes_are_registered_before_team_slug_routes(): void
+    {
+        $routes = collect(Route::getRoutes()->getRoutes())->values();
+
+        $inviteRouteIndex = $routes->search(fn ($route) => $route->getName() === 'team-invitations.show');
+        $firstTeamRouteIndex = $routes->search(fn ($route) => str_starts_with($route->uri(), '{team}/'));
+
+        $this->assertIsInt($inviteRouteIndex);
+        $this->assertIsInt($firstTeamRouteIndex);
+        $this->assertLessThan($firstTeamRouteIndex, $inviteRouteIndex);
     }
 
     public function test_invited_user_can_accept_invitation_and_set_their_name(): void
