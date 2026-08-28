@@ -1,6 +1,68 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 import { login, sidebarProjectRow, sidebarTaskRow } from './helpers/app';
+
+test('timeline exports the full current view as PNG and PDF', async ({ page }, testInfo) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1100, height: 700 });
+    await login(page);
+
+    const horizontalScroll = page.locator('.timeline-horizontal-scroll');
+    await horizontalScroll.evaluate((element) => {
+        element.scrollLeft = 300;
+    });
+
+    await page.getByTestId('timeline-export-trigger').click();
+    const pngDownloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Download PNG' }).click();
+    const pngDownload = await pngDownloadPromise;
+    const pngPath = testInfo.outputPath(pngDownload.suggestedFilename());
+    await pngDownload.saveAs(pngPath);
+    const png = await readFile(pngPath);
+
+    expect(pngDownload.suggestedFilename()).toMatch(/^timeline-\d{4}-\d{2}-\d{2}\.png$/);
+    expect([...png.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(png.readUInt32BE(16)).toBeGreaterThan(1100);
+    expect(png.byteLength).toBeGreaterThan(50_000);
+    expect(await imageContainsNonWhitePixels(page, png)).toBe(true);
+
+    await page.getByTestId('timeline-export-trigger').click();
+    const pdfDownloadPromise = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Download PDF' }).click();
+    const pdfDownload = await pdfDownloadPromise;
+    const pdfPath = testInfo.outputPath(pdfDownload.suggestedFilename());
+    await pdfDownload.saveAs(pdfPath);
+    const pdf = await readFile(pdfPath);
+
+    expect(pdfDownload.suggestedFilename()).toMatch(/^timeline-\d{4}-\d{2}-\d{2}\.pdf$/);
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    await expect(page.getByTestId('timeline-export-trigger')).toBeEnabled();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+async function imageContainsNonWhitePixels(page, imageBuffer) {
+    return page.evaluate(async (base64) => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${base64}`;
+        await image.decode();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = Math.max(1, Math.round((image.height / image.width) * canvas.width));
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+
+        for (let index = 0; index < pixels.length; index += 4) {
+            if (pixels[index] < 245 || pixels[index + 1] < 245 || pixels[index + 2] < 245) {
+                return true;
+            }
+        }
+
+        return false;
+    }, imageBuffer.toString('base64'));
+}
 
 test('project header selection supports browser back navigation', async ({ page }) => {
     await login(page);

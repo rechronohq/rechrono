@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
-import { ChevronRight, Settings2 } from 'lucide-react';
+import { ChevronRight, Download, FileImage, FileText, Loader2, Settings2 } from 'lucide-react';
 
 import { Button, buttonVariants } from '../../components/ui/button';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
@@ -14,7 +20,10 @@ export function TasksCommandBar({
     assigneeOptions = [],
     breadcrumbs,
     filtersOpen,
+    exportError = '',
+    isExporting = false,
     onOpenProjectForm,
+    onExport,
     onSelectAllAssignees,
     onSelectAllProjects,
     onSelectProject,
@@ -70,6 +79,36 @@ export function TasksCommandBar({
 
     const actions = (
         <div className="flex flex-none items-center justify-end gap-2.5">
+            <div className="flex flex-col items-end gap-1">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            type="button"
+                            data-testid="timeline-export-trigger"
+                            disabled={isExporting}
+                            className={cn(
+                                buttonVariants({ variant: 'outline', size: 'sm' }),
+                                'shrink-0 gap-2 px-3',
+                            )}
+                        >
+                            {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin text-stone-500" /> : <Download className="h-3.5 w-3.5 text-stone-500" />}
+                            {isExporting ? 'Exporting…' : 'Export'}
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="z-[260] min-w-[190px]">
+                        <DropdownMenuItem className="gap-2" onSelect={() => onExport('png')}>
+                            <FileImage className="h-4 w-4 text-stone-500" />
+                            Download PNG
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onSelect={() => onExport('pdf')}>
+                            <FileText className="h-4 w-4 text-stone-500" />
+                            Download PDF
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                {exportError ? <p role="alert" className="max-w-72 text-right text-[11px] leading-tight text-rose-600">{exportError}</p> : null}
+            </div>
+
             <Popover open={filtersOpen} onOpenChange={onToggleFilters}>
                 <PopoverTrigger asChild>
                     <button

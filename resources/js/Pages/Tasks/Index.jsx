@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 
 import AppPage from '@/Layouts/AppPage';
@@ -10,11 +10,15 @@ import { GroupDialog } from '../Timeline/GroupDialog';
 import { ProjectDialog } from '../Timeline/ProjectDialog';
 import { ProjectEditorDialog } from '../Timeline/ProjectEditorDialog';
 import { TimelineCanvas } from '../Timeline/TimelineCanvas';
+import { exportTimeline, timelineExportFilename } from '../Timeline/exportTimeline';
 import { TaskDialog } from '../Timeline/TaskDialog';
 
 export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplicateTaskUrlTemplate, reorderTaskUrlTemplate, updateTaskUrlTemplate }) {
     const { props } = usePage();
     const activeTimelineView = (props.timelineViews ?? []).find((view) => view.id === props.activeTimelineViewId) ?? null;
+    const timelineExportRef = useRef(null);
+    const [isExporting, setIsExporting] = useState(false);
+    const [exportError, setExportError] = useState('');
     const board = useTasksBoard({
         activeTimelineView,
         timelineData,
@@ -30,6 +34,37 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
         '--timeline-month-height': `${board.timelineDensity.monthHeight}px`,
         '--timeline-row-height': `${board.timelineDensity.rowHeight}px`,
     };
+    const selectedProject = board.data.selected_project_ids.length === 1
+        ? board.data.projects.find((project) => project.id === board.data.selected_project_ids[0])
+        : null;
+
+    async function handleExport(format) {
+        if (isExporting) {
+            return;
+        }
+
+        setIsExporting(true);
+        setExportError('');
+
+        try {
+            await exportTimeline({
+                element: timelineExportRef.current,
+                filename: timelineExportFilename({
+                    activeViewName: activeTimelineView?.name,
+                    selectedProjectName: selectedProject?.name,
+                }),
+                format,
+                headerHeight: board.timelineDensity.headerHeight,
+                rowCount: board.rows.length,
+                rowHeight: board.timelineDensity.rowHeight,
+                timelineWidth: board.timelineWidth,
+            });
+        } catch (error) {
+            setExportError(error instanceof Error ? error.message : 'The timeline could not be exported.');
+        } finally {
+            setIsExporting(false);
+        }
+    }
 
     return (
         <AppPage
@@ -40,7 +75,10 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                     assigneeOptions={board.data.assignee_options ?? []}
                     breadcrumbs={board.breadcrumbs}
                     filtersOpen={board.filtersOpen}
+                    exportError={exportError}
+                    isExporting={isExporting}
                     onOpenProjectForm={board.openProjectForm}
+                    onExport={handleExport}
                     onSelectAllAssignees={board.selectAllAssignees}
                     onSelectAllProjects={board.selectAllProjects}
                     onSelectProject={board.selectSingleProject}
@@ -64,7 +102,7 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                 data-density={board.timelineDensity.key}
                 style={timelineLayoutStyle}
             >
-                <div className="timeline-scroll min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-white">
+                <div ref={timelineExportRef} className="timeline-scroll min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-white">
                     <div className="timeline-sidebar-pane">
                         <TasksSidebar
                             collapsedGroupIds={board.collapsedGroupIds}

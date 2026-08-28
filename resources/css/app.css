@@ -328,6 +328,20 @@
         border-bottom: 1px solid rgba(231, 229, 228, 0.9);
     }
 
+    .timeline-export-surface .timeline-row-action-button,
+    .timeline-export-surface .timeline-row-drag-handle,
+    .timeline-export-surface .timeline-bar-handle,
+    .timeline-export-surface .timeline-hover-add,
+    .timeline-export-surface .timeline-marquee-rect,
+    .timeline-export-surface .timeline-drop-zones {
+        display: none !important;
+    }
+
+    .timeline-export-surface .timeline-tree-row,
+    .timeline-export-surface .timeline-bar {
+        cursor: default !important;
+    }
+
     .timeline-project-shell {
         background: #ffffff;
     }
