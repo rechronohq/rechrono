@@ -3,6 +3,18 @@ import { readFile } from 'node:fs/promises';
 
 import { login, sidebarProjectRow, sidebarTaskRow } from './helpers/app';
 
+test('time tracking controls stay hidden when the module is disabled', async ({ page }) => {
+    await login(page);
+
+    const taskRow = sidebarTaskRow(page, 'Plan');
+    await taskRow.hover();
+    await expect(taskRow.getByRole('button', { name: 'Start timer' })).toHaveCount(0);
+
+    await taskRow.click();
+    await expect(page.getByRole('dialog', { name: 'Edit task' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start timer' })).toHaveCount(0);
+});
+
 test('timeline exports the full current view as PNG and PDF', async ({ page }, testInfo) => {
     test.setTimeout(60_000);
     await page.setViewportSize({ width: 1100, height: 700 });

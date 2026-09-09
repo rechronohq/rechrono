@@ -28,6 +28,7 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
         reorderTaskUrlTemplate,
         updateTaskUrlTemplate,
     });
+    const canTrackTime = Boolean(props.auth?.team?.time_tracking_enabled && props.routes?.time);
     const timelineLayoutStyle = {
         '--timeline-day-height': `${board.timelineDensity.dayHeight}px`,
         '--timeline-header-height': `${board.timelineDensity.headerHeight}px`,
@@ -132,8 +133,8 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                             onSaveProjectAsTemplate={board.saveProjectAsTemplate}
                             onSetSingleSelection={board.setSingleSidebarSelection}
                             onSubmitTask={board.submitTask}
-                            onStartTaskTimer={board.startTaskTimer}
-                            onStopTaskTimer={board.stopTaskTimer}
+                            onStartTaskTimer={canTrackTime ? board.startTaskTimer : undefined}
+                            onStopTaskTimer={canTrackTime ? board.stopTaskTimer : undefined}
                             onTaskClick={board.openTaskModal}
                             onToggleGroupCollapse={board.toggleGroupCollapse}
                             onToggleProjectCollapse={board.toggleProjectCollapse}
@@ -190,8 +191,8 @@ export default function TasksIndex({ timelineData, createTaskUrlTemplate, duplic
                     onDelete={board.removeTaskFromModal}
                     onDuplicate={board.duplicateTaskFromModal}
                     onFieldChange={board.setTaskModalField}
-                    onStartTimer={board.startTaskTimer}
-                    onStopTimer={board.stopTaskTimer}
+                    onStartTimer={canTrackTime ? board.startTaskTimer : undefined}
+                    onStopTimer={canTrackTime ? board.stopTaskTimer : undefined}
                     onSubmit={board.submitTaskModal}
                     open={board.taskModalOpen}
                     parentTaskOptions={board.taskModalParentOptions}
